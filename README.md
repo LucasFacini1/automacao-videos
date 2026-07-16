@@ -22,6 +22,32 @@ O worker é um processo separado porque geração de vídeo leva minutos e a API
 **Nunca rode o worker com `--watch`.** O reload mata o processo no meio de uma geração
 e o job fica preso em `rodando` até o `destravar_jobs()` liberar (15 min).
 
+## O primeiro teste que importa
+
+Antes de ligar o resto, responda: **a API reproduz o que você já valida no Flow?**
+Precisa só da `GOOGLE_API_KEY` — nem Supabase, nem Claude.
+
+```bash
+npm run testar:imagem
+```
+
+Gera a imagem base a partir de `img/persona.png` + `img/imagem produto 3.png` e salva
+em `out/base-gerada.png`. Compare com `img/imagem base 3.png`, que você já aprovou.
+Custa ~R$0,72.
+
+Se rosto e closet baterem, o resto é ligar fio. Se não baterem, o prompt precisa de
+ajuste antes de qualquer outra coisa.
+
+## Testes
+
+```bash
+npm test
+```
+
+Cobre a costura do prompt de vídeo — que o formato mudo descarta o `speech`, que o
+negative certo entra em cada caso, que a referência é substituída. Lógica pura, roda
+sem chave nenhuma.
+
 ## Setup do Supabase
 
 1. Crie o projeto em [supabase.com](https://supabase.com).

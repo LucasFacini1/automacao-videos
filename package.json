@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "worker": "tsx worker/index.ts"
+    "worker": "tsx worker/index.ts",
+    "testar:imagem": "tsx scripts/testar-imagem.ts",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.0",
