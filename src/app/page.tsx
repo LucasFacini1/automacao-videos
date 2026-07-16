@@ -1,65 +1,100 @@
 import Image from "next/image";
+import Link from "next/link";
+import { Cabecalho } from "@/components/cabecalho";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { PRODUTOS, ROTULO_STATUS, type StatusProduto } from "@/lib/mock";
+
+const TOM: Record<StatusProduto, string> = {
+  gerando: "bg-muted text-muted-foreground",
+  aguardando_aprovacao: "bg-primary/10 text-primary border-primary/20",
+  aprovada: "bg-muted text-muted-foreground",
+  com_videos: "bg-emerald-50 text-emerald-700 border-emerald-200",
+};
 
 export default function Home() {
+  const pendentes = PRODUTOS.filter((p) => p.status === "aguardando_aprovacao");
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <>
+      <Cabecalho />
+
+      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-28 pt-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Seus produtos</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {PRODUTOS.length} produtos · {PRODUTOS.reduce((s, p) => s + p.videos, 0)} vídeos prontos
+        </p>
+
+        {pendentes.length > 0 && (
+          <Link
+            href="/novo?passo=aprovar"
+            className="mt-5 flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3 transition-colors hover:bg-primary/10"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+            <span className="relative flex size-2 shrink-0">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-60" />
+              <span className="relative inline-flex size-2 rounded-full bg-primary" />
+            </span>
+            <span className="min-w-0 flex-1 text-sm">
+              <span className="font-medium">
+                {pendentes.length} foto{pendentes.length > 1 ? "s" : ""} esperando você
+              </span>
+              <span className="block text-muted-foreground">Confira antes de virar vídeo</span>
+            </span>
+            <span aria-hidden className="text-muted-foreground">
+              ›
+            </span>
+          </Link>
+        )}
+
+        <ul className="mt-5 space-y-3">
+          {PRODUTOS.map((p) => (
+            <li key={p.id}>
+              <Link
+                href="/novo?passo=aprovar"
+                className="flex gap-3 rounded-xl border bg-card p-3 transition-shadow hover:shadow-sm"
+              >
+                <Image
+                  src={p.baseUrl ?? p.produtoUrl}
+                  alt=""
+                  width={64}
+                  height={96}
+                  className="h-24 w-16 shrink-0 rounded-lg object-cover object-top"
+                />
+                <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
+                  <div>
+                    <p className="truncate font-medium leading-snug">{p.nome}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{p.quando}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`font-normal ${TOM[p.status]}`}>
+                      {ROTULO_STATUS[p.status]}
+                    </Badge>
+                    {p.videos > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {p.videos} vídeo{p.videos > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </main>
-    </div>
+
+      {/* Fixo embaixo: é a ação principal e ela usa com uma mão só, no celular. */}
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/90 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+        <div className="mx-auto max-w-2xl">
+          <Button
+            render={<Link href="/novo" />}
+            nativeButton={false}
+            size="lg"
+            className="h-12 w-full text-base"
+          >
+            Novo produto
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
