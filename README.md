@@ -22,14 +22,20 @@ O worker é um processo separado porque geração de vídeo leva minutos e a API
 **Nunca rode o worker com `--watch`.** O reload mata o processo no meio de uma geração
 e o job fica preso em `rodando` até o `destravar_jobs()` liberar (15 min).
 
-## Banco
+## Setup do Supabase
 
-Rode as migrations na ordem, no SQL Editor do Supabase:
+1. Crie o projeto em [supabase.com](https://supabase.com).
+2. Rode as migrations **na ordem**, no SQL Editor:
+   ```
+   supabase/migrations/0001_initial.sql
+   supabase/migrations/0002_pegar_job.sql
+   ```
+3. Crie o bucket de storage: **Storage → New bucket → nome `midia` → Private.**
 
-```
-supabase/migrations/0001_initial.sql
-supabase/migrations/0002_pegar_job.sql
-```
+   Tem que ser **privado**. Guarda o rosto da persona e os vídeos; o dashboard
+   acessa por signed URL de validade curta (`urlAssinada()` em `src/lib/storage.ts`).
+   Nunca use `getPublicUrl` aqui.
+4. Copie as chaves de **Settings → API** para o `.env.local`.
 
 RLS está **desativado** no MVP — o worker usa `service_role` e o dashboard filtra por
 `user_id`. Ligar antes de qualquer usuário além dos três conhecidos.

@@ -11,6 +11,7 @@
  */
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
+import { gerarImagem, analisar, gerarVideoHandler, type Job } from "./handlers";
 
 const INTERVALO_MS = 3000;
 
@@ -23,35 +24,15 @@ if (!url || !key) {
   process.exit(1);
 }
 
-const db = createClient(url, key, {
+const dbClient = createClient(url, key, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
+const db = dbClient;
 
-type Job = {
-  id: string;
-  tipo: "gerar_imagem" | "analisar" | "gerar_video";
-  ref_id: string;
-  tentativas: number;
-};
-
-// --- handlers: Fases 2 e 3 ---------------------------------------------------
-
-async function gerarImagem(_job: Job): Promise<void> {
-  throw new Error("gerar_imagem: não implementado (Fase 2)");
-}
-
-async function analisar(_job: Job): Promise<void> {
-  throw new Error("analisar: não implementado (Fase 3)");
-}
-
-async function gerarVideo(_job: Job): Promise<void> {
-  throw new Error("gerar_video: não implementado (Fase 3)");
-}
-
-const HANDLERS: Record<Job["tipo"], (job: Job) => Promise<void>> = {
+const HANDLERS: Record<Job["tipo"], (db: typeof dbClient, job: Job) => Promise<void>> = {
   gerar_imagem: gerarImagem,
   analisar: analisar,
-  gerar_video: gerarVideo,
+  gerar_video: gerarVideoHandler,
 };
 
 // --- loop --------------------------------------------------------------------
@@ -66,7 +47,7 @@ async function processarUm(): Promise<boolean> {
   console.log(`[${job.tipo}] ${job.id} (tentativa ${job.tentativas})`);
 
   try {
-    await HANDLERS[job.tipo](job);
+    await HANDLERS[job.tipo](db, job);
     await db.from("job").update({ status: "ok" }).eq("id", job.id);
     console.log(`[${job.tipo}] ${job.id} ok`);
   } catch (e) {
