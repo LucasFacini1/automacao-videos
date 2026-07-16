@@ -106,3 +106,16 @@ alter table imagem_base  disable row level security;
 alter table analise      disable row level security;
 alter table video        disable row level security;
 alter table job          disable row level security;
+
+-- ---------------------------------------------------------------- GRANTs
+-- Com RLS desligado, quem libera o acesso é o GRANT. Sem isto o dashboard
+-- (que usa a anon key) recebe erro de permissão ou resultado vazio — e o
+-- sintoma não aponta pra cá.
+--
+-- `anon` fica só com o SELECT do necessário pro fluxo de login; o resto exige
+-- sessão. O worker não depende disto: usa service_role, que ignora ambos.
+grant usage on schema public to anon, authenticated;
+
+grant select, insert, update, delete on
+  conta, persona, produto, imagem_base, analise, video, job
+  to authenticated;

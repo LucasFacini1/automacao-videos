@@ -47,3 +47,9 @@ as $$
   )
   select count(*)::int from liberados;
 $$;
+
+-- Só o worker chama estas. O dashboard não tem o que fazer com elas.
+revoke all on function pegar_job(int)   from public, anon, authenticated;
+revoke all on function destravar_jobs() from public, anon, authenticated;
+grant execute on function pegar_job(int)   to service_role;
+grant execute on function destravar_jobs() to service_role;
