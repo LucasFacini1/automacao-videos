@@ -9,7 +9,8 @@
     "lint": "eslint",
     "worker": "tsx worker/index.ts",
     "testar:imagem": "tsx scripts/testar-imagem.ts",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "testar:worker": "tsx scripts/testar-worker.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.0",
