@@ -13,8 +13,12 @@
  *
  * Custo: ~R$0,72 por execução.
  */
-import "dotenv/config";
+import { config } from "dotenv";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+
+// .env.local é a convenção do Next e é o que fica fora do git. Rodando via tsx
+// (fora do Next), precisa apontar explícito — `dotenv/config` só leria `.env`.
+config({ path: ".env.local" });
 import { gerarImagemBase, MODELO_IMAGEM } from "../src/lib/ia/gemini";
 import { promptImagemBase } from "../src/lib/prompts";
 

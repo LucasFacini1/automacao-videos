@@ -9,7 +9,9 @@
  * Nunca usar --watch: o reload mata o processo no meio de uma geração e o job
  * fica preso em 'rodando' até o destravar_jobs() liberar.
  */
-import "dotenv/config";
+import { config } from "dotenv";
+config({ path: ".env.local" }); // fora do Next, dotenv/config só leria .env
+
 import { createClient } from "@supabase/supabase-js";
 import { gerarImagem, analisar, gerarVideoHandler, type Job } from "./handlers";
 
