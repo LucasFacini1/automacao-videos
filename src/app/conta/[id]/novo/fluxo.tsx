@@ -20,7 +20,7 @@ const BASE = "/img/base-3.png";
 const COPY_EXEMPLO =
   "Achei esse body de recorte e não acreditei no preço 🖤 O detalhe trançado no busto parece peça de grife.\n\n#lookdodia #achadinhos #modafeminina";
 
-export function Fluxo({ inicial = "enviar" }: { inicial?: Passo }) {
+export function Fluxo({ inicial = "enviar", contaId }: { inicial?: Passo; contaId: string }) {
   const [passo, setPasso] = useState<Passo>(inicial);
   const [qtd, setQtd] = useState<Record<string, number>>({ talking: 1 });
 
@@ -310,7 +310,7 @@ export function Fluxo({ inicial = "enviar" }: { inicial?: Passo }) {
           <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/90 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
             <div className="mx-auto max-w-2xl">
               <Button
-                render={<Link href="/" />}
+                render={<Link href={`/conta/${contaId}`} />}
                 nativeButton={false}
                 size="lg"
                 variant="outline"
