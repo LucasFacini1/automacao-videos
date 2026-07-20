@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FORMATOS, FORMATOS_POR_KEY } from "../src/lib/formatos";
-import { montarPromptVideo } from "../src/lib/ia/claude";
+import { montarPromptVideo } from "../src/lib/ia/direcao";
 
 const DIRECAO = {
   framing: "close-up, waist up",

@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { FORMATOS, FORMATOS_POR_KEY, type FormatoKey } from "@/lib/formatos";
 import { promptImagemBase } from "@/lib/prompts";
 import { gerarImagemBase, gerarVideo, MODELO_VIDEO } from "@/lib/ia/gemini";
-import { analisarImagemBase, montarPromptVideo } from "@/lib/ia/claude";
+import { analisarImagemBase, montarPromptVideo } from "@/lib/ia/direcao";
 import { baixarInline, subirBase64, subirBuffer } from "@/lib/storage";
 
 export type Job = {

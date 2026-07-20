@@ -10,17 +10,19 @@
     "worker": "tsx worker/index.ts",
     "testar:imagem": "tsx scripts/testar-imagem.ts",
     "test": "tsx --test tests/*.test.ts",
-    "testar:worker": "tsx scripts/testar-worker.ts"
+    "testar:worker": "tsx scripts/testar-worker.ts",
+    "criar:usuario": "tsx scripts/criar-usuario.ts",
+    "semear:conta": "tsx scripts/semear-conta.ts",
+    "testar:direcao": "tsx scripts/testar-direcao.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.112.0",
     "@base-ui/react": "^1.6.0",
     "@google/genai": "^2.12.0",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.24.0",
+    "lucide-react": "^1.25.0",
     "next": "16.2.10",
     "next-themes": "^0.4.6",
     "react": "19.2.4",

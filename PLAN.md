@@ -9,7 +9,7 @@ foto do produto  →  imagem base (persona vestindo a peça no closet)
                          ↓
                    [ APROVAR ]  ← usuário decide aqui, antes de gastar com vídeo
                          ↓
-              descrição da roupa + copy PT-BR (Claude)
+              direção + copy PT-BR (Gemini Flash-Lite)
                          ↓
                 template do formato (código)
                          ↓
@@ -29,7 +29,7 @@ O gate de aprovação existe porque imagem custa R$0,72 e vídeo custa R$5,40. E
 | Fila | Tabela `job` no Postgres (`SELECT ... FOR UPDATE SKIP LOCKED`) |
 | Worker | Processo Node separado — local agora, Railway depois |
 | Imagem | `gemini-3-pro-image` (Nano Banana **Pro** — o mesmo que o Lucas usa no Flow) |
-| Texto | `claude-sonnet-5` (visão + direção + copy PT-BR) |
+| Direção + copy | `gemini-3.1-flash-lite` (visão + direção + copy PT-BR) |
 | Vídeo | `gemini-omni-flash-preview` |
 
 **Por que o worker é separado:** a API de vídeo é assíncrona (devolve uma operação, você consulta até ficar pronto) e leva minutos. Não cabe em função serverless. Dashboard vai pra Vercel, worker vai pra Railway. Desacoplado desde já = zero refatoração depois.
@@ -63,7 +63,7 @@ imagem_base
   status  text,   -- gerando | pronta | aprovada | rejeitada | erro
   prompt_usado text, erro text null, created_at
 
-analise                          -- saída do Claude, 1 por imagem_base aprovada
+analise                          -- saída do modelo de direção, 1 por imagem_base aprovada
   id, imagem_base_id → imagem_base (unique),
   descricao_roupa text,          -- em inglês, entra no prompt de vídeo
   copy jsonb,                    -- { texto_tela: [...], descricao, hashtags: [...] }
@@ -83,7 +83,14 @@ job
   locked_at timestamptz null, created_at
 ```
 
-RLS desativado no MVP (worker usa service_role; dashboard filtra por `user_id`). Ligar antes de qualquer usuário além dos três conhecidos.
+**RLS e acesso.** O Supabase cria as tabelas com RLS **ligada**. Em vez de desligar,
+todo acesso do servidor (dashboard e worker) usa o cliente **`service_role`**, que a
+ignora — e o que separa um usuário do outro é o **filtro por `user_id`** em `dados.ts` /
+`acoes.ts`. A `service_role` nunca sai do servidor (só server components, server actions
+e worker). Se um dia o acesso passar a vir do browser, aí sim é preciso escrever policies.
+
+> Já custou tempo: usar o cliente *autenticado* nas escritas dá
+> `new row violates row-level security policy`, porque não há policy nenhuma.
 
 ### 3.1 A referência da persona é congelada
 
@@ -103,27 +110,34 @@ type Formato = {
   nome: string;           // rótulo no dashboard
   tem_fala: boolean;
   duracao_s: number;
-  briefing: string;       // o que esse formato é — vai pro Claude junto com a imagem
+  briefing: string;       // o que esse formato é — vai pro modelo junto com a imagem
   boilerplate: string;    // referência + constraints + negative (§5)
 };
 ```
 
-O `briefing` descreve a intenção do formato ("recurring 'find of the day' reveal — energetic and branded, same opening/closing pose every episode"); o Claude escreve a direção dentro dela.
+O `briefing` descreve a intenção do formato ("recurring 'find of the day' reveal — energetic and branded, same opening/closing pose every episode"); o modelo escreve a direção dentro dela.
 
 **Provisórios** — os três de hoje. O shape mapeia 1:1 pra uma tabela `formato`, então virar biblioteca editável (dancinhas, movimento, desfilando) é migração pequena, não refatoração. Fica pra depois do MVP rodar.
 
-## 5. O que o Claude faz (e o que não faz)
+## 5. O que o modelo de direção faz (e o que não faz)
+
+> **Nota:** este passo rodava no Claude Sonnet e passou para o **Gemini Flash-Lite**.
+> Motivo: precisa de **visão** (ler a peça na imagem base), custa ~10x menos, e usa a
+> mesma chave da imagem/vídeo — uma credencial só no projeto. A API do DeepSeek foi
+> considerada e **descartada: é text-only**, não enxerga a imagem, então produziria
+> direção genérica.
+
 
 O prompt de vídeo tem duas metades: **boilerplate** e **direção**.
 
-**Boilerplate — fica em código, o Claude nunca toca.** É o que é igual em todo vídeo, e é onde um modelo derrapa se deixado solto:
+**Boilerplate — fica em código, o modelo nunca toca.** É o que é igual em todo vídeo, e é onde um modelo derrapa se deixado solto:
 
 - a linha `[Reference: ...]` + `Same woman and closet as her usual reference`
 - `Handheld vertical phone video, soft natural lighting, realistic casual UGC, 9:16, ~10s`
 - o `Negative:` completo
 - a duração e o aspect ratio
 
-**Direção — o Claude escreve, olhando a imagem base.** É o que muda conforme a peça, e é onde está o valor:
+**Direção — o modelo escreve, olhando a imagem base.** É o que muda conforme a peça, e é onde está o valor:
 
 | Campo | Por que é variável |
 |---|---|
@@ -133,7 +147,7 @@ O prompt de vídeo tem duas metades: **boilerplate** e **direção**.
 | `speech` | Só nos formatos com fala |
 | `copy` | Texto de tela com timings, descrição, hashtags — PT-BR |
 
-Uma chamada, structured output (`output_config.format`), JSON garantido. O worker costura direção + boilerplate e manda pro Omni Flash.
+Uma chamada, structured output (`responseMimeType: "application/json"` + `responseJsonSchema`), JSON garantido. O worker costura direção + boilerplate e manda pro Omni Flash.
 
 **A regra:** se o campo seria idêntico entre uma peça e outra, é boilerplate. Se muda com a peça, é direção.
 
@@ -178,6 +192,6 @@ Fases 4 e 5 **não são opcionais** — são o motivo do projeto existir. Mas v�
 |---|---|
 | Omni Flash é `preview` — API pode mudar | Isolar atrás de uma interface `GeradorDeVideo` |
 | Imagem base sai errada (rosto muda, roupa muda) | Baixo — é o mesmo Nano Banana Pro, mesmo prompt, mesmas refs. O gate de aprovação já cobre o resto |
-| Direção do Claude vira genérica ("natural movement") e perde o que vende | Few-shot: os 3 prompts que o Lucas já validou entram como exemplo na chamada |
+| Direção do modelo vira genérica ("natural movement") e perde o que vende | Few-shot: os 3 prompts que o Lucas já validou entram como exemplo na chamada |
 | Custo escapa | Estimativa antes de gerar + teto mensal por conta |
 | TikTok Direct Post exige auditoria | Fase 6 usa rascunho, que não exige |

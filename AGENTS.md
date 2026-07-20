@@ -38,8 +38,13 @@ parecer errado. Trocar é ação deliberada no setup da conta.
 
 **Boilerplate vs direção** (PLAN.md §5). Se o campo seria idêntico entre uma peça e
 outra, é boilerplate e fica em `src/lib/formatos.ts`. Se muda com a peça, é direção e
-quem escreve é o Claude, olhando a imagem base. Não deixe o modelo reescrever o
+quem escreve é o modelo de direção (Gemini Flash-Lite), olhando a imagem base. Não deixe o modelo reescrever o
 negative nem as constraints.
+
+**Acesso ao banco é via `service_role`, filtrando por `user_id`.** As tabelas nascem
+com RLS ligada e sem policies. Dashboard e worker usam o cliente admin (`dados.ts`,
+`acoes.ts`, `sessao.ts`) — o cliente *autenticado* nas escritas dá `new row violates
+row-level security policy`. A chave nunca sai do servidor.
 
 **Zero jargão na interface.** A usuária final é a tia do dono, no celular, e o objetivo
 é ela usar sozinha. "Criando a foto", não "gerando imagem". Nunca "prompt", "IA", "job",
