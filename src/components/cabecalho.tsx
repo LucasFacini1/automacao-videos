@@ -43,7 +43,6 @@ export async function Cabecalho({
                   width={28}
                   height={28}
                   className="size-7 shrink-0 rounded-full object-cover object-top ring-1 ring-border"
-                  unoptimized
                 />
               ) : (
                 <span className="size-7 shrink-0 rounded-full bg-muted ring-1 ring-border" />
@@ -56,7 +55,7 @@ export async function Cabecalho({
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Clapperboard className="size-4.5" />
             </span>
-            <span className="text-[15px] font-semibold tracking-tight">Studio</span>
+            <span className="font-display text-xl leading-none">Studio</span>
           </Link>
         )}
 

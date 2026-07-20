@@ -81,6 +81,52 @@ export async function criarConta(form: FormData) {
   redirect(`/conta/${conta.id}`);
 }
 
+/**
+ * Exclui a conta inteira: persona, produtos, imagens, vídeos e os arquivos no
+ * storage. Irreversível — a UI pede confirmação digitando o @ da conta.
+ */
+export async function excluirConta(contaId: string) {
+  const { db } = await exigirDonoDaConta(contaId);
+
+  // storage não tem cascade: limpa a pasta da conta antes de apagar a linha
+  for (const pasta of ["persona", "produtos", "base", "videos"]) {
+    const { data } = await db.storage.from(BUCKET).list(`contas/${contaId}/${pasta}`);
+    if (data?.length) {
+      await db.storage
+        .from(BUCKET)
+        .remove(data.map((f) => `contas/${contaId}/${pasta}/${f.name}`));
+    }
+  }
+
+  // o resto cai por ON DELETE CASCADE (ver schema)
+  const { error } = await db.from("conta").delete().eq("id", contaId);
+  if (error) throw new Error(`Não deu pra excluir a conta: ${error.message}`);
+
+  revalidatePath("/");
+  redirect("/");
+}
+
+/** Exclui um produto e tudo que veio dele. */
+export async function excluirProduto(produtoId: string) {
+  const { db, user } = await exigirUsuario();
+
+  const { data: prod } = await db
+    .from("produto")
+    .select("id, conta_id, conta:conta_id(user_id)")
+    .eq("id", produtoId)
+    .maybeSingle();
+
+  if (!prod) throw new Error("Produto não encontrado.");
+  if ((prod.conta as unknown as { user_id: string }).user_id !== user.id) {
+    throw new Error("Produto não encontrado.");
+  }
+
+  const { error } = await db.from("produto").delete().eq("id", produtoId);
+  if (error) throw new Error(`Não deu pra excluir: ${error.message}`);
+
+  revalidatePath(`/conta/${prod.conta_id}`);
+}
+
 // --- produto -> imagem base --------------------------------------------------
 
 export async function criarProduto(form: FormData) {

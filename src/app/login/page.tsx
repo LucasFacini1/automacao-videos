@@ -13,8 +13,10 @@ export default function Login() {
           <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Clapperboard className="size-6" />
           </span>
-          <span className="mt-3 text-lg font-semibold tracking-tight">Studio</span>
-          <span className="text-sm text-muted-foreground">Vídeos de produto, no automático</span>
+          <span className="mt-3 font-display text-2xl leading-none">Studio</span>
+          <span className="mt-1.5 text-sm text-muted-foreground">
+            Vídeos de produto, no automático
+          </span>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_3px_rgb(0_0_0/0.04)]">

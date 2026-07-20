@@ -1,27 +1,44 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+/**
+ * Inter na interface (o mais próximo do SF Pro que dá pra servir na web) e um
+ * serif só na marca — o toque editorial, sem comprometer a legibilidade de
+ * quem usa isso no celular todo dia.
+ */
+const inter = Inter({
+  variable: "--font-sans",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const serif = Instrument_Serif({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Studio",
   description: "Vídeos de produto para o TikTok Shop, no automático.",
 };
 
-/** Ela usa isso no celular. `viewportFit` evita o notch comer a barra de baixo. */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  themeColor: "#faf9f7",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang="pt-BR"
+      className={`${inter.variable} ${serif.variable} h-full antialiased`}
+    >
       <body className="bg-background text-foreground min-h-full flex flex-col">
         {children}
         <Toaster position="top-center" />

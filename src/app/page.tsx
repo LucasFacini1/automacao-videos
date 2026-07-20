@@ -57,7 +57,6 @@ export default async function Home() {
                           width={44}
                           height={44}
                           className="size-11 shrink-0 rounded-full object-cover object-top ring-1 ring-border"
-                          unoptimized
                         />
                       ) : (
                         <span className="size-11 shrink-0 rounded-full bg-muted ring-1 ring-border" />
