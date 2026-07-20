@@ -12,12 +12,12 @@ export function supabaseConfigurado(): boolean {
 }
 
 export function envFaltando(): string[] {
+  // Só a chave do Google — imagem, direção e vídeo rodam todos no Gemini.
   const necessarias = [
     "NEXT_PUBLIC_SUPABASE_URL",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",
     "SUPABASE_SERVICE_ROLE_KEY",
     "GOOGLE_API_KEY",
-    "ANTHROPIC_API_KEY",
   ];
   return necessarias.filter((k) => !process.env[k]);
 }

@@ -2,28 +2,23 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { usuarioLogado } from "@/lib/sessao";
 import { BUCKET } from "@/lib/storage";
 import { FORMATOS_POR_KEY, type FormatoKey } from "@/lib/formatos";
 
 /**
  * Escritas. Todo caminho que muda o banco passa por aqui.
  *
- * NÃO TESTADO contra Supabase de verdade — escrito sem credencial.
- *
- * RLS está desativado (PLAN.md §3): a checagem de dono nestas funções é a
- * única coisa impedindo um usuário de mexer na conta do outro. Toda ação que
- * recebe um id de fora TEM que ancorar no user_id antes de escrever.
+ * Usa o cliente admin (service_role) no servidor — ignora RLS. A checagem de
+ * dono (user_id) nestas funções é a única coisa impedindo um usuário de mexer
+ * na conta do outro. Toda ação que recebe um id de fora ancora no user_id.
  */
 
 async function exigirUsuario() {
-  const db = await createClient();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
+  const user = await usuarioLogado();
   if (!user) redirect("/login");
-  return { db, user };
+  return { db: createAdminClient(), user };
 }
 
 /** Confirma que a conta é do usuário logado. Lança se não for. */
@@ -44,7 +39,6 @@ async function exigirDonoDaConta(contaId: string) {
 
 export async function criarConta(form: FormData) {
   const { db, user } = await exigirUsuario();
-  const admin = createAdminClient();
 
   const handle = String(form.get("handle") ?? "").replace(/^@/, "").trim();
   const ref = form.get("ref") as File | null;
@@ -61,10 +55,9 @@ export async function criarConta(form: FormData) {
   if (eConta) throw new Error(`Não deu pra criar a conta: ${eConta.message}`);
 
   // A referência congela aqui (PLAN.md §3.1). Caminho fixo por conta, sem
-  // timestamp: trocar a modelo sobrescreve, e nenhuma geração passa a apontar
-  // pra uma imagem gerada.
+  // timestamp: nenhuma geração passa a apontar pra uma imagem gerada.
   const path = `contas/${conta.id}/persona/referencia.png`;
-  const { error: eUp } = await admin.storage
+  const { error: eUp } = await db.storage
     .from(BUCKET)
     .upload(path, Buffer.from(await ref.arrayBuffer()), {
       contentType: ref.type || "image/png",
@@ -85,7 +78,7 @@ export async function criarConta(form: FormData) {
   if (ePersona) throw new Error(`Não deu pra salvar a modelo: ${ePersona.message}`);
 
   revalidatePath("/");
-  redirect("/");
+  redirect(`/conta/${conta.id}`);
 }
 
 // --- produto -> imagem base --------------------------------------------------
@@ -93,7 +86,6 @@ export async function criarConta(form: FormData) {
 export async function criarProduto(form: FormData) {
   const contaId = String(form.get("contaId") ?? "");
   const { db } = await exigirDonoDaConta(contaId);
-  const admin = createAdminClient();
 
   const foto = form.get("foto") as File | null;
   if (!foto || foto.size === 0) throw new Error("Envie a foto do produto.");
@@ -109,7 +101,7 @@ export async function criarProduto(form: FormData) {
   if (eProd) throw new Error(`Não deu pra salvar o produto: ${eProd.message}`);
 
   const path = `contas/${contaId}/produtos/${produto.id}.png`;
-  const { error: eUp } = await admin.storage
+  const { error: eUp } = await db.storage
     .from(BUCKET)
     .upload(path, Buffer.from(await foto.arrayBuffer()), {
       contentType: foto.type || "image/png",
@@ -129,27 +121,29 @@ export async function criarProduto(form: FormData) {
 
   await db.from("job").insert({ tipo: "gerar_imagem", ref_id: ib.id });
 
-  revalidatePath("/");
+  revalidatePath(`/conta/${contaId}`);
   return { imagemBaseId: ib.id };
 }
 
 /** Refazer: nova imagem_base pro mesmo produto. A anterior fica no histórico. */
 export async function refazerImagem(imagemBaseId: string) {
-  const { db } = await exigirUsuario();
+  const { db, user } = await exigirUsuario();
 
-  const { data: anterior } = await db
+  const { data: ib } = await db
     .from("imagem_base")
-    .select("produto_id")
+    .select("produto_id, produto:produto_id(conta_id, conta:conta_id(user_id))")
     .eq("id", imagemBaseId)
     .maybeSingle();
 
-  if (!anterior) throw new Error("Imagem não encontrada.");
+  if (!ib) throw new Error("Imagem não encontrada.");
+  const dono = (ib.produto as unknown as { conta: { user_id: string } }).conta.user_id;
+  if (dono !== user.id) throw new Error("Imagem não encontrada.");
 
   await db.from("imagem_base").update({ status: "rejeitada" }).eq("id", imagemBaseId);
 
   const { data: nova, error } = await db
     .from("imagem_base")
-    .insert({ produto_id: anterior.produto_id, status: "gerando" })
+    .insert({ produto_id: ib.produto_id, status: "gerando" })
     .select("id")
     .single();
 
@@ -164,14 +158,9 @@ export async function refazerImagem(imagemBaseId: string) {
 // --- aprovação ---------------------------------------------------------------
 
 /**
- * Aprova e já enfileira a análise.
- *
- * A análise roda ENQUANTO ela escolhe os formatos, então quando os jobs de
- * vídeo entrarem na fila a direção já existe. Isso funciona porque a fila é
- * FIFO por created_at e o `analisar` entra antes: com UM worker, a ordem é
- * garantida. Se um dia rodar mais de um worker em paralelo, `gerar_video`
- * pode achar a análise ausente — nesse caso ele erra e retenta, mas o certo
- * seria uma dependência explícita entre jobs.
+ * Aprova e já enfileira a análise. A análise roda enquanto ela escolhe os
+ * formatos, então a direção já existe quando os jobs de vídeo entram (FIFO, um
+ * worker). Ver PLAN.md §5.
  */
 export async function aprovarImagem(imagemBaseId: string) {
   const { db } = await exigirUsuario();
@@ -197,8 +186,7 @@ export async function pedirVideos(imagemBaseId: string, quantidades: Record<stri
 
   for (const [key, n] of Object.entries(quantidades)) {
     if (!FORMATOS_POR_KEY[key as FormatoKey]) throw new Error(`Formato inválido: ${key}`);
-    // Teto por pedido: sem isso, um clique errado vira R$100 de vídeo.
-    const qtd = Math.max(0, Math.min(5, Math.trunc(n)));
+    const qtd = Math.max(0, Math.min(5, Math.trunc(n))); // teto: clique errado não vira R$100
     for (let i = 0; i < qtd; i++) linhas.push({ imagem_base_id: imagemBaseId, formato_key: key });
   }
 

@@ -1,14 +1,10 @@
 import { notFound } from "next/navigation";
 import { Cabecalho } from "@/components/cabecalho";
-import { pegarConta } from "@/lib/mock";
+import { pegarConta } from "@/lib/dados";
 import { Fluxo, type Passo } from "./fluxo";
 
 const PASSOS: Passo[] = ["enviar", "criando", "aprovar", "escolher", "criando_videos", "pronto"];
 
-/**
- * Fluxo de novo produto, dentro da conta. ?passo= é só pra revisar cada tela
- * sem clicar o fluxo inteiro; sai quando ligar no banco.
- */
 export default async function NovoProduto({
   params,
   searchParams,
@@ -17,7 +13,7 @@ export default async function NovoProduto({
   searchParams: Promise<{ passo?: string }>;
 }) {
   const { id } = await params;
-  const conta = pegarConta(id);
+  const conta = await pegarConta(id);
   if (!conta) notFound();
 
   const { passo } = await searchParams;
@@ -25,7 +21,7 @@ export default async function NovoProduto({
 
   return (
     <>
-      <Cabecalho conta={{ handle: conta.handle, personaUrl: conta.persona.fotoUrl }} />
+      <Cabecalho conta={{ handle: conta.handle, personaUrl: conta.persona?.refUrl ?? null }} />
       <Fluxo inicial={inicial} contaId={conta.id} />
     </>
   );

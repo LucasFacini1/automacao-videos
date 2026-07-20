@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { FORMATOS } from "@/lib/formatos";
-import { CUSTO_VIDEO, formatarBRL } from "@/lib/mock";
+import { CUSTO_VIDEO, formatarBRL } from "@/lib/custos";
 
 export type Passo = "enviar" | "criando" | "aprovar" | "escolher" | "criando_videos" | "pronto";
 
