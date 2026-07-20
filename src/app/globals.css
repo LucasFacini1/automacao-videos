@@ -24,6 +24,7 @@
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
+  --color-brand: var(--brand);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
@@ -49,26 +50,29 @@
 }
 
 :root {
-  /* Base neutra + UM acento (framboesa). É ferramenta de uso diário no
-     celular, não peça editorial: alto contraste, um acento só, sem gradiente. */
-  --background: oklch(0.995 0.002 60);
-  --foreground: oklch(0.145 0 0);
+  /* Sistema profissional: neutros zinc (tom frio), primary quase-preto,
+     bordas suaves. Cor entra só em status (amber/emerald) e no acento de
+     marca, nunca como preenchimento chapado. */
+  --background: oklch(0.984 0.002 286);
+  --foreground: oklch(0.21 0.006 286);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.21 0.006 286);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.55 0.19 8);
-  --primary-foreground: oklch(0.99 0.005 8);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.21 0.006 286);
+  --primary: oklch(0.24 0.006 286);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.002 286);
+  --secondary-foreground: oklch(0.24 0.006 286);
+  --muted: oklch(0.967 0.002 286);
+  --muted-foreground: oklch(0.552 0.014 286);
+  --accent: oklch(0.967 0.002 286);
+  --accent-foreground: oklch(0.24 0.006 286);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.55 0.19 8);
+  --border: oklch(0.918 0.004 286);
+  --input: oklch(0.918 0.004 286);
+  --ring: oklch(0.55 0.015 286);
+  /* acento de marca — usado com parcimônia (marca, foco, destaque pontual) */
+  --brand: oklch(0.55 0.19 8);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

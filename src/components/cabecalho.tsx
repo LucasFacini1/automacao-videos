@@ -1,52 +1,72 @@
 import Image from "next/image";
 import Link from "next/link";
-import { USUARIO } from "@/lib/mock";
+import { ChevronLeft, Clapperboard } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import { Tutorial } from "@/components/tutorial";
 
 /**
- * Cabeçalho contextual.
- *
- * - No hub (sem conta): mostra o usuário.
- * - Dentro de uma conta: mostra a conta + um "voltar" pro hub, pra deixar
- *   claro em qual conta ela está mexendo. Sistema multi-conta: perder esse
- *   contexto é postar produto na conta errada.
+ * Barra de topo do app.
+ *  - No hub: marca do produto + usuário.
+ *  - Dentro de uma conta: volta pro hub + a conta atual (nunca perder de vista
+ *    em qual conta está mexendo — postar na errada é o erro óbvio de multi-conta).
  */
-export function Cabecalho({
+export async function Cabecalho({
   conta,
 }: {
-  conta?: { handle: string; personaUrl: string };
+  conta?: { handle: string; personaUrl: string | null };
 }) {
+  let inicial = "?";
+  if (!conta) {
+    const {
+      data: { user },
+    } = await (await createClient()).auth.getUser();
+    inicial = (user?.email?.[0] ?? "?").toUpperCase();
+  }
+
   return (
-    <header className="sticky top-0 z-20 border-b bg-background/85 backdrop-blur-sm">
-      <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-4">
+    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-md">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:px-6">
         {conta ? (
           <>
             <Link
               href="/"
-              aria-label="Voltar para minhas contas"
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Voltar para as contas"
+              className="-ml-1.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
-              ‹
+              <ChevronLeft className="size-5" />
             </Link>
-            <Image
-              src={conta.personaUrl}
-              alt=""
-              width={32}
-              height={32}
-              className="size-8 shrink-0 rounded-full object-cover object-top ring-1 ring-border"
-            />
-            <span className="truncate text-sm font-medium">{conta.handle}</span>
+            <div className="flex min-w-0 items-center gap-2.5">
+              {conta.personaUrl ? (
+                <Image
+                  src={conta.personaUrl}
+                  alt=""
+                  width={28}
+                  height={28}
+                  className="size-7 shrink-0 rounded-full object-cover object-top ring-1 ring-border"
+                  unoptimized
+                />
+              ) : (
+                <span className="size-7 shrink-0 rounded-full bg-muted ring-1 ring-border" />
+              )}
+              <span className="truncate text-sm font-medium">{conta.handle}</span>
+            </div>
           </>
         ) : (
-          <>
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-              {USUARIO.inicial}
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Clapperboard className="size-4.5" />
             </span>
-            <span className="truncate text-sm font-medium">{USUARIO.nome}</span>
-          </>
+            <span className="text-[15px] font-semibold tracking-tight">Studio</span>
+          </Link>
         )}
-        <div className="ml-auto">
+
+        <div className="ml-auto flex items-center gap-1">
           <Tutorial />
+          {!conta && (
+            <span className="flex size-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground ring-1 ring-border">
+              {inicial}
+            </span>
+          )}
         </div>
       </div>
     </header>
