@@ -1,31 +1,32 @@
--- Schema completo do automacao-videos.
--- Gerado juntando as migrations. Cole INTEIRO no SQL Editor do Supabase e rode.
--- (Depois: Storage > New bucket > nome 'midia' > Private.)
-
--- ==================================================================
--- PARTE 1: tabelas, RLS e grants
--- ==================================================================
-
--- Schema inicial — ver PLAN.md §3
--- Rodar no SQL Editor do Supabase.
+-- ============================================================================
+-- Studio — schema completo e IDEMPOTENTE.
+--
+-- Cole ESTE arquivo inteiro no SQL Editor do Supabase e rode.
+-- Pode rodar quantas vezes quiser: não apaga dados, só garante o estado certo.
+-- Não precisa lembrar o que já rodou — este arquivo é a fonte única.
+--
+-- Cobre: tabelas, índices, constraints (com os status de cancelamento),
+-- RLS/grants, funções da fila, e o bucket de storage.
+-- ============================================================================
 
 create extension if not exists "pgcrypto";
 
--- ---------------------------------------------------------------- conta
-create table conta (
+-- ---------------------------------------------------------------- tabelas
+-- (status sem CHECK inline — os checks ficam num bloco só, mais abaixo, pra
+--  serem idempotentes e sempre incluírem os status novos)
+
+create table if not exists conta (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users(id) on delete cascade,
-  handle      text not null,               -- @gabi.modafacil
+  handle      text not null,
   nome        text not null,
   ativo       boolean not null default true,
   created_at  timestamptz not null default now()
 );
-create index conta_user_id_idx on conta(user_id);
+create index if not exists conta_user_id_idx on conta(user_id);
 
--- ---------------------------------------------------------------- persona
--- 1 por conta. ref_image_url é CONGELADA — ver PLAN.md §3.1.
--- Nunca apontar para "a imagem base mais recente": degradação geracional.
-create table persona (
+-- persona: 1 por conta. ref_image_url é CONGELADA (ver PLAN.md §3.1).
+create table if not exists persona (
   id             uuid primary key default gen_random_uuid(),
   conta_id       uuid not null unique references conta(id) on delete cascade,
   ref_image_url  text not null,
@@ -37,9 +38,8 @@ create table persona (
   updated_at     timestamptz not null default now()
 );
 
--- ---------------------------------------------------------------- produto
--- "produto" pode ser uma peça OU um look inteiro (body + saia).
-create table produto (
+-- produto: pode ser uma peça OU um look inteiro.
+create table if not exists produto (
   id             uuid primary key default gen_random_uuid(),
   conta_id       uuid not null references conta(id) on delete cascade,
   nome           text not null,
@@ -48,65 +48,80 @@ create table produto (
   preco          numeric(10,2),
   created_at     timestamptz not null default now()
 );
-create index produto_conta_id_idx on produto(conta_id);
+create index if not exists produto_conta_id_idx on produto(conta_id);
 
--- ---------------------------------------------------------------- imagem_base
-create table imagem_base (
+create table if not exists imagem_base (
   id            uuid primary key default gen_random_uuid(),
   produto_id    uuid not null references produto(id) on delete cascade,
   image_url     text,
-  status        text not null default 'gerando'
-                check (status in ('gerando','pronta','aprovada','rejeitada','erro')),
+  status        text not null default 'gerando',
   prompt_usado  text,
   erro          text,
   created_at    timestamptz not null default now()
 );
-create index imagem_base_produto_id_idx on imagem_base(produto_id);
+create index if not exists imagem_base_produto_id_idx on imagem_base(produto_id);
 
--- ---------------------------------------------------------------- analise
--- Saída do Claude: direção por peça + copy. Ver PLAN.md §5.
-create table analise (
+-- analise: direção por peça + copy (saída do modelo de direção).
+create table if not exists analise (
   id               uuid primary key default gen_random_uuid(),
   imagem_base_id   uuid not null unique references imagem_base(id) on delete cascade,
   descricao_roupa  text not null,
-  direcao          jsonb not null,   -- { <formato_key>: { framing, movement, destaque, speech? } }
-  copy             jsonb not null,   -- { <formato_key>: { texto_tela[], descricao, hashtags[] } }
+  direcao          jsonb not null,
+  copy             jsonb not null,
   created_at       timestamptz not null default now()
 );
 
--- ---------------------------------------------------------------- video
-create table video (
+create table if not exists video (
   id              uuid primary key default gen_random_uuid(),
   imagem_base_id  uuid not null references imagem_base(id) on delete cascade,
-  formato_key     text not null,     -- FK lógica p/ src/lib/formatos.ts
-  status          text not null default 'na_fila'
-                  check (status in ('na_fila','gerando','pronto','erro')),
+  formato_key     text not null,
+  status          text not null default 'na_fila',
   video_url       text,
   duracao_s       int,
   prompt_final    text,
   erro            text,
   created_at      timestamptz not null default now()
 );
-create index video_imagem_base_id_idx on video(imagem_base_id);
+create index if not exists video_imagem_base_id_idx on video(imagem_base_id);
 
--- ---------------------------------------------------------------- job
--- Fila. Worker consome com FOR UPDATE SKIP LOCKED.
-create table job (
+-- job: fila. Worker consome com FOR UPDATE SKIP LOCKED.
+create table if not exists job (
   id           uuid primary key default gen_random_uuid(),
-  tipo         text not null check (tipo in ('gerar_imagem','analisar','gerar_video')),
-  ref_id       uuid not null,       -- imagem_base.id | imagem_base.id | video.id
-  status       text not null default 'pendente'
-               check (status in ('pendente','rodando','ok','erro')),
+  tipo         text not null,
+  ref_id       uuid not null,
+  status       text not null default 'pendente',
   tentativas   int not null default 0,
   ultimo_erro  text,
   locked_at    timestamptz,
   created_at   timestamptz not null default now()
 );
-create index job_fila_idx on job(status, created_at) where status = 'pendente';
+create index if not exists job_fila_idx on job(status, created_at) where status = 'pendente';
 
--- ---------------------------------------------------------------- RLS
--- Desativado no MVP. Worker usa service_role; dashboard filtra por user_id.
--- LIGAR antes de qualquer usuário além dos três conhecidos (ver PLAN.md §3).
+-- ---------------------------------------------------------------- constraints
+-- Via drop+add: idempotente, e garante que os status novos (cancelada/cancelado)
+-- existam mesmo se a tabela foi criada numa versão antiga do schema.
+
+alter table imagem_base drop constraint if exists imagem_base_status_check;
+alter table imagem_base add  constraint imagem_base_status_check
+  check (status in ('gerando','pronta','aprovada','rejeitada','erro','cancelada'));
+
+alter table video drop constraint if exists video_status_check;
+alter table video add  constraint video_status_check
+  check (status in ('na_fila','gerando','pronto','erro','cancelado'));
+
+alter table job drop constraint if exists job_tipo_check;
+alter table job add  constraint job_tipo_check
+  check (tipo in ('gerar_imagem','analisar','gerar_video'));
+
+alter table job drop constraint if exists job_status_check;
+alter table job add  constraint job_status_check
+  check (status in ('pendente','rodando','ok','erro'));
+
+-- ---------------------------------------------------------------- RLS + grants
+-- RLS desligada; o worker usa service_role (ignora RLS) e o dashboard filtra
+-- por user_id no servidor. GRANT libera o acesso (sem ele, o dashboard recebe
+-- erro de permissão). Tudo idempotente.
+
 alter table conta        disable row level security;
 alter table persona      disable row level security;
 alter table produto      disable row level security;
@@ -115,27 +130,14 @@ alter table analise      disable row level security;
 alter table video        disable row level security;
 alter table job          disable row level security;
 
--- ---------------------------------------------------------------- GRANTs
--- Com RLS desligado, quem libera o acesso é o GRANT. Sem isto o dashboard
--- (que usa a anon key) recebe erro de permissão ou resultado vazio — e o
--- sintoma não aponta pra cá.
---
--- `anon` fica só com o SELECT do necessário pro fluxo de login; o resto exige
--- sessão. O worker não depende disto: usa service_role, que ignora ambos.
 grant usage on schema public to anon, authenticated;
-
 grant select, insert, update, delete on
   conta, persona, produto, imagem_base, analise, video, job
   to authenticated;
 
-
--- ==================================================================
--- PARTE 2: funcoes da fila
--- ==================================================================
-
--- Fila: o worker reivindica UM job atomicamente.
--- SKIP LOCKED deixa vários workers rodarem em paralelo sem pegar o mesmo job.
--- O client JS do Supabase não roda SQL cru, então isso vira RPC.
+-- ---------------------------------------------------------------- funções fila
+-- pegar_job: reivindica UM job atomicamente (SKIP LOCKED deixa vários workers
+-- em paralelo sem pegar o mesmo). O client JS do Supabase não roda SQL cru.
 
 create or replace function pegar_job(max_tentativas int default 3)
 returns setof job
@@ -167,8 +169,8 @@ begin
 end;
 $$;
 
--- Jobs que travaram (worker morreu no meio) voltam pra fila depois de 15min.
--- Chamar no boot do worker.
+-- destravar_jobs: jobs travados (worker morreu no meio) voltam pra fila depois
+-- de 15min. Chamar no boot do worker.
 create or replace function destravar_jobs()
 returns int
 language sql
@@ -183,8 +185,15 @@ as $$
   select count(*)::int from liberados;
 $$;
 
--- Só o worker chama estas. O dashboard não tem o que fazer com elas.
 revoke all on function pegar_job(int)   from public, anon, authenticated;
 revoke all on function destravar_jobs() from public, anon, authenticated;
 grant execute on function pegar_job(int)   to service_role;
 grant execute on function destravar_jobs() to service_role;
+
+-- ---------------------------------------------------------------- storage
+-- Bucket privado 'midia' (rosto da persona + vídeos). O service_role ignora a
+-- RLS de storage, então basta o bucket existir. Idempotente.
+
+insert into storage.buckets (id, name, public)
+values ('midia', 'midia', false)
+on conflict (id) do nothing;

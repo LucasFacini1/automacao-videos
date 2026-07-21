@@ -5,12 +5,18 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Copy, Download, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
+import { Check, Copy, Download, Loader2, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FORMATOS, FORMATOS_POR_KEY } from "@/lib/formatos";
 import { CUSTO_VIDEO, formatarBRL } from "@/lib/custos";
-import { aprovarImagem, pedirVideos, refazerImagem } from "@/lib/acoes";
+import {
+  aprovarImagem,
+  pedirVideos,
+  refazerImagem,
+  cancelarVideo,
+  cancelarImagem,
+} from "@/lib/acoes";
 import type { EstadoProduto } from "@/lib/dados";
 
 /** Enquanto o worker trabalha, a tela se atualiza sozinha. */
@@ -36,6 +42,32 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
 
   const total = Object.values(qtd).reduce((s, n) => s + n, 0);
 
+  /** Roda uma ação e mostra toast de erro se falhar (aviso padronizado). */
+  function agir(fn: () => Promise<unknown>, aoOk?: () => void) {
+    iniciar(async () => {
+      try {
+        await fn();
+        if (aoOk) aoOk();
+        else router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Algo deu errado. Tente de novo.");
+      }
+    });
+  }
+
+  /** Refaz a foto: cria uma nova imagem base e navega pra ela. */
+  function refazer(aviso?: string) {
+    iniciar(async () => {
+      try {
+        if (aviso) toast(aviso);
+        const { imagemBaseId } = await refazerImagem(estado.imagemBaseId);
+        router.push(`/conta/${estado.contaId}/produto/${imagemBaseId}`);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Não deu pra refazer.");
+      }
+    });
+  }
+
   function alternar(key: string) {
     setQtd((q) => {
       const n = { ...q };
@@ -49,11 +81,34 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
   if (esperandoFoto) {
     return (
       <Secao titulo="Criando a foto" sub="Leva menos de um minuto. Pode deixar essa tela aberta.">
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card px-6 py-14">
+        <div className="glass-card flex flex-col items-center gap-4 px-6 py-14">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Vestindo a peça na modelo...</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={agindo}
+            onClick={() => agir(() => cancelarImagem(estado.imagemBaseId))}
+            className="text-muted-foreground"
+          >
+            <X className="size-4" /> Cancelar
+          </Button>
         </div>
         <AvisoWorker />
+      </Secao>
+    );
+  }
+
+  // imagem cancelada — oferece refazer
+  if (estado.status === "cancelada" || estado.status === "rejeitada") {
+    return (
+      <Secao titulo="Criação cancelada" sub="Você cancelou a criação desta foto.">
+        <div className="glass-card flex flex-col items-center gap-4 px-6 py-14">
+          <p className="text-sm text-muted-foreground">Quer tentar de novo?</p>
+          <Button disabled={agindo} onClick={() => refazer()}>
+            <RefreshCw className="size-4" /> Refazer a foto
+          </Button>
+        </div>
       </Secao>
     );
   }
@@ -69,17 +124,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
           {estado.erroImagem && (
             <p className="mt-2 break-words text-sm text-muted-foreground">{estado.erroImagem}</p>
           )}
-          <Button
-            variant="outline"
-            className="mt-4 gap-1.5"
-            disabled={agindo}
-            onClick={() =>
-              iniciar(async () => {
-                const { imagemBaseId } = await refazerImagem(estado.imagemBaseId);
-                router.push(`/conta/${estado.contaId}/produto/${imagemBaseId}`);
-              })
-            }
-          >
+          <Button variant="outline" className="mt-4 gap-1.5" disabled={agindo} onClick={() => refazer()}>
             <RefreshCw className="size-4" /> Tentar de novo
           </Button>
         </div>
@@ -130,13 +175,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
             size="lg"
             className="h-12 gap-1.5 sm:flex-1"
             disabled={agindo}
-            onClick={() =>
-              iniciar(async () => {
-                const { imagemBaseId } = await refazerImagem(estado.imagemBaseId);
-                toast("Refazendo a foto...");
-                router.push(`/conta/${estado.contaId}/produto/${imagemBaseId}`);
-              })
-            }
+            onClick={() => refazer("Refazendo a foto...")}
           >
             <RefreshCw className="size-4" /> Refazer
           </Button>
@@ -144,12 +183,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
             size="lg"
             className="h-12 gap-1.5 text-base sm:flex-[2]"
             disabled={agindo}
-            onClick={() =>
-              iniciar(async () => {
-                await aprovarImagem(estado.imagemBaseId);
-                router.refresh();
-              })
-            }
+            onClick={() => agir(() => aprovarImagem(estado.imagemBaseId))}
           >
             <Check className="size-4" /> Ficou igual, continuar
           </Button>
@@ -220,9 +254,9 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
           className="mt-4 h-12 w-full text-base"
           disabled={total === 0 || agindo}
           onClick={() =>
-            iniciar(async () => {
-              await pedirVideos(estado.imagemBaseId, qtd);
-              router.refresh();
+            agir(async () => {
+              const { quantos } = await pedirVideos(estado.imagemBaseId, qtd);
+              toast.success(`${quantos} ${quantos === 1 ? "vídeo entrou" : "vídeos entraram"} na fila`);
             })
           }
         >
@@ -267,12 +301,24 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
                     <TriangleAlert className="size-5 text-destructive" />
                     <span className="text-xs text-muted-foreground">{v.erro ?? "Falhou"}</span>
                   </div>
+                ) : v.status === "cancelado" ? (
+                  <div className="flex size-full flex-col items-center justify-center gap-2 px-4 text-center">
+                    <X className="size-5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Cancelado</span>
+                  </div>
                 ) : (
                   <div className="flex size-full flex-col items-center justify-center gap-2">
                     <Loader2 className="size-6 animate-spin text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
                       {v.status === "gerando" ? "criando..." : "na fila"}
                     </span>
+                    <button
+                      disabled={agindo}
+                      onClick={() => agir(() => cancelarVideo(v.id))}
+                      className="mt-1 rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
                   </div>
                 )}
               </div>

@@ -3,25 +3,27 @@ import Link from "next/link";
 import { ChevronLeft, Clapperboard } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Tutorial } from "@/components/tutorial";
+import { MenuUsuario } from "@/components/menu-usuario";
 
 /**
  * Barra de topo do app.
- *  - No hub: marca do produto + usuário.
+ *  - No hub: marca do produto + menu do usuário.
  *  - Dentro de uma conta: volta pro hub + a conta atual (nunca perder de vista
  *    em qual conta está mexendo — postar na errada é o erro óbvio de multi-conta).
+ *
+ * O menu do usuário (com Sair) aparece em TODA tela, pra logout ser sempre
+ * alcançável.
  */
 export async function Cabecalho({
   conta,
 }: {
   conta?: { handle: string; personaUrl: string | null };
 }) {
-  let inicial = "?";
-  if (!conta) {
-    const {
-      data: { user },
-    } = await (await createClient()).auth.getUser();
-    inicial = (user?.email?.[0] ?? "?").toUpperCase();
-  }
+  const {
+    data: { user },
+  } = await (await createClient()).auth.getUser();
+  const email = user?.email ?? "";
+  const inicial = (email[0] ?? "?").toUpperCase();
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-md">
@@ -59,13 +61,9 @@ export async function Cabecalho({
           </Link>
         )}
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1.5">
           <Tutorial />
-          {!conta && (
-            <span className="flex size-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground ring-1 ring-border">
-              {inicial}
-            </span>
-          )}
+          <MenuUsuario inicial={inicial} email={email} />
         </div>
       </div>
     </header>

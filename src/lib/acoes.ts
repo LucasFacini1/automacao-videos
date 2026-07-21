@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { usuarioLogado } from "@/lib/sessao";
 import { BUCKET } from "@/lib/storage";
 import { FORMATOS_POR_KEY, type FormatoKey } from "@/lib/formatos";
@@ -33,6 +34,15 @@ async function exigirDonoDaConta(contaId: string) {
 
   if (!data) throw new Error("Conta não encontrada.");
   return { db, user };
+}
+
+// --- sessão ------------------------------------------------------------------
+
+/** Sair da conta. Encerra a sessão (cookie) e volta pro login. */
+export async function sair() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/login");
 }
 
 // --- conta + persona ---------------------------------------------------------
@@ -245,4 +255,62 @@ export async function pedirVideos(imagemBaseId: string, quantidades: Record<stri
 
   revalidatePath("/");
   return { quantos: videos.length };
+}
+
+// --- cancelamento ------------------------------------------------------------
+
+/** Garante que o item (via imagem_base) é do usuário logado. */
+async function donoDaImagemBase(db: ReturnType<typeof createAdminClient>, ibId: string, userId: string) {
+  const { data } = await db
+    .from("imagem_base")
+    .select("id, produto:produto_id(conta:conta_id(user_id))")
+    .eq("id", ibId)
+    .maybeSingle();
+  const dono = (data?.produto as unknown as { conta: { user_id: string } } | undefined)?.conta.user_id;
+  return Boolean(data) && dono === userId;
+}
+
+/**
+ * Cancela um vídeo em `na_fila` ou `gerando`.
+ *
+ * Se ainda está na fila, tira o job antes do worker pegar — não gasta nada.
+ * Se já está gerando, marca cancelado; o worker, ao terminar a chamada do Veo,
+ * vê que não está mais `gerando` e descarta o resultado (ver worker/handlers).
+ */
+export async function cancelarVideo(videoId: string) {
+  const { db, user } = await exigirUsuario();
+
+  const { data: v } = await db
+    .from("video")
+    .select("id, status, imagem_base_id")
+    .eq("id", videoId)
+    .maybeSingle();
+  if (!v) throw new Error("Vídeo não encontrado.");
+  if (!(await donoDaImagemBase(db, v.imagem_base_id, user.id))) {
+    throw new Error("Vídeo não encontrado.");
+  }
+  if (v.status === "pronto" || v.status === "cancelado") return;
+
+  // tira o job da fila se ainda não foi pego (sem custo)
+  await db.from("job").delete().eq("tipo", "gerar_video").eq("ref_id", videoId).eq("status", "pendente");
+  await db.from("video").update({ status: "cancelado" }).eq("id", videoId);
+
+  revalidatePath("/");
+}
+
+/** Cancela a geração da foto (imagem base) enquanto está `gerando`. */
+export async function cancelarImagem(imagemBaseId: string) {
+  const { db, user } = await exigirUsuario();
+
+  if (!(await donoDaImagemBase(db, imagemBaseId, user.id))) {
+    throw new Error("Imagem não encontrada.");
+  }
+
+  const { data: ib } = await db.from("imagem_base").select("status").eq("id", imagemBaseId).maybeSingle();
+  if (!ib || ib.status !== "gerando") return;
+
+  await db.from("job").delete().eq("tipo", "gerar_imagem").eq("ref_id", imagemBaseId).eq("status", "pendente");
+  await db.from("imagem_base").update({ status: "cancelada" }).eq("id", imagemBaseId);
+
+  revalidatePath("/");
 }

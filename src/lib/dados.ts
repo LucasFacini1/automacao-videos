@@ -13,7 +13,7 @@ import { urlAssinada } from "@/lib/storage";
  * O bucket `midia` é privado — imagens vêm como signed URL, nunca URL pública.
  */
 
-export type StatusImagem = "gerando" | "pronta" | "aprovada" | "rejeitada" | "erro";
+export type StatusImagem = "gerando" | "pronta" | "aprovada" | "rejeitada" | "erro" | "cancelada";
 
 // --- hub: contas do usuário com resumo --------------------------------------
 
@@ -190,7 +190,7 @@ export async function listarProdutos(contaId: string): Promise<ProdutoLista[]> {
 export type VideoItem = {
   id: string;
   formatoKey: string;
-  status: "na_fila" | "gerando" | "pronto" | "erro";
+  status: "na_fila" | "gerando" | "pronto" | "erro" | "cancelado";
   videoUrl: string | null;
   erro: string | null;
 };

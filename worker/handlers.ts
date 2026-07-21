@@ -43,6 +43,14 @@ export async function gerarImagem(db: SupabaseClient, job: Job): Promise<void> {
   ]);
 
   const gerada = await gerarImagemBase({ prompt, persona: refPersona, produto: imgProduto });
+
+  // cancelado durante a geração? descarta.
+  const { data: atual } = await db.from("imagem_base").select("status").eq("id", ib.id).single();
+  if (atual?.status !== "gerando") {
+    console.log(`  imagem ${ib.id} cancelada durante a geração — descartando`);
+    return;
+  }
+
   const path = `contas/${produto.conta_id}/base/${ib.id}.png`;
   await subirBase64(db, path, gerada);
 
@@ -145,6 +153,14 @@ export async function gerarVideoHandler(db: SupabaseClient, job: Job): Promise<v
     duracaoS: formato.duracaoS,
     onProgresso: (n) => console.log(`  [${MODELO_VIDEO}] ${v.id} aguardando... (${n * 10}s)`),
   });
+
+  // O usuário pode ter cancelado enquanto o Veo gerava. Se não está mais
+  // 'gerando', descarta — não sobrescreve o cancelamento.
+  const { data: atual } = await db.from("video").select("status").eq("id", v.id).single();
+  if (atual?.status !== "gerando") {
+    console.log(`  ${v.id} cancelado durante a geração — descartando resultado`);
+    return;
+  }
 
   // A URI do Gemini é temporária e exige a chave — baixa e guarda no storage.
   const resp = await fetch(`${uri}&key=${process.env.GOOGLE_API_KEY}`);

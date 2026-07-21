@@ -12,6 +12,7 @@ const ROTULO: Record<StatusImagem, string> = {
   aprovada: "Aprovada",
   rejeitada: "Refeita",
   erro: "Deu erro",
+  cancelada: "Cancelada",
 };
 
 const TOM: Record<StatusImagem, string> = {
@@ -20,6 +21,7 @@ const TOM: Record<StatusImagem, string> = {
   aprovada: "bg-secondary text-muted-foreground",
   rejeitada: "bg-secondary text-muted-foreground",
   erro: "bg-destructive/10 text-destructive ring-1 ring-destructive/20",
+  cancelada: "bg-secondary text-muted-foreground",
 };
 
 export default async function ContaHome({ params }: { params: Promise<{ id: string }> }) {

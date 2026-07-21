@@ -51,17 +51,12 @@ sem chave nenhuma.
 ## Setup do Supabase
 
 1. Crie o projeto em [supabase.com](https://supabase.com).
-2. Rode as migrations **na ordem**, no SQL Editor:
-   ```
-   supabase/migrations/0001_initial.sql
-   supabase/migrations/0002_pegar_job.sql
-   ```
-3. Crie o bucket de storage: **Storage → New bucket → nome `midia` → Private.**
+2. Cole **`supabase/schema.sql` inteiro** no SQL Editor e rode. É um arquivo só,
+   idempotente — pode rodar quantas vezes quiser, não apaga dados. Cria tabelas,
+   constraints, RLS/grants, as funções da fila **e o bucket `midia`** (privado).
 
-   Tem que ser **privado**. Guarda o rosto da persona e os vídeos; o dashboard
-   acessa por signed URL de validade curta (`urlAssinada()` em `src/lib/storage.ts`).
-   Nunca use `getPublicUrl` aqui.
-4. Copie as chaves de **Settings → API** para o `.env.local`.
+   > Não precisa lembrar o que já rodou: rodar de novo só reconcilia o estado.
+3. Copie as chaves de **Settings → API** para o `.env.local`.
 
 RLS está **desativado** no MVP — o worker usa `service_role` e o dashboard filtra por
 `user_id`. Ligar antes de qualquer usuário além dos três conhecidos.
@@ -73,7 +68,7 @@ RLS está **desativado** no MVP — o worker usa `service_role` e o dashboard fi
 | `src/lib/formatos.ts` | Formatos de vídeo: `briefing` (vai pro Claude) + `boilerplate` (fixo) |
 | `src/lib/prompts.ts` | Prompt da imagem base — validado na mão, mexer só com medição |
 | `src/lib/supabase/admin.ts` | Client `service_role`. Só server/worker, nunca browser |
-| `supabase/migrations/` | Schema |
+| `supabase/schema.sql` | Schema completo e idempotente (fonte única) |
 | `worker/index.ts` | Loop da fila + handlers |
 | `img/` | Os 3 pares (produto → imagem base) que o Lucas validou. Few-shot e referência de qualidade |
 
