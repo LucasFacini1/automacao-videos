@@ -13,7 +13,8 @@
     "testar:worker": "tsx scripts/testar-worker.ts",
     "criar:usuario": "tsx scripts/criar-usuario.ts",
     "semear:conta": "tsx scripts/semear-conta.ts",
-    "testar:direcao": "tsx scripts/testar-direcao.ts"
+    "testar:direcao": "tsx scripts/testar-direcao.ts",
+    "testar:pipeline": "tsx scripts/testar-pipeline.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

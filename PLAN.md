@@ -13,7 +13,7 @@ foto do produto  →  imagem base (persona vestindo a peça no closet)
                          ↓
                 template do formato (código)
                          ↓
-                 N clipes 9:16 (Omni Flash)
+                 N clipes 9:16 (Veo 3.1 Fast)
                          ↓
                   biblioteca → download
 ```
@@ -30,7 +30,7 @@ O gate de aprovação existe porque imagem custa R$0,72 e vídeo custa R$5,40. E
 | Worker | Processo Node separado — local agora, Railway depois |
 | Imagem | `gemini-3-pro-image` (Nano Banana **Pro** — o mesmo que o Lucas usa no Flow) |
 | Direção + copy | `gemini-3.1-flash-lite` (visão + direção + copy PT-BR) |
-| Vídeo | `gemini-omni-flash-preview` |
+| Vídeo | `veo-3.1-fast-generate-preview` (8s, image-to-video) |
 
 **Por que o worker é separado:** a API de vídeo é assíncrona (devolve uma operação, você consulta até ficar pronto) e leva minutos. Não cabe em função serverless. Dashboard vai pra Vercel, worker vai pra Railway. Desacoplado desde já = zero refatoração depois.
 
@@ -133,7 +133,7 @@ O prompt de vídeo tem duas metades: **boilerplate** e **direção**.
 **Boilerplate — fica em código, o modelo nunca toca.** É o que é igual em todo vídeo, e é onde um modelo derrapa se deixado solto:
 
 - a linha `[Reference: ...]` + `Same woman and closet as her usual reference`
-- `Handheld vertical phone video, soft natural lighting, realistic casual UGC, 9:16, ~10s`
+- `Handheld vertical phone video, soft natural lighting, realistic casual UGC, 9:16, ~8s`
 - o `Negative:` completo
 - a duração e o aspect ratio
 
@@ -147,7 +147,7 @@ O prompt de vídeo tem duas metades: **boilerplate** e **direção**.
 | `speech` | Só nos formatos com fala |
 | `copy` | Texto de tela com timings, descrição, hashtags — PT-BR |
 
-Uma chamada, structured output (`responseMimeType: "application/json"` + `responseJsonSchema`), JSON garantido. O worker costura direção + boilerplate e manda pro Omni Flash.
+Uma chamada, structured output (`responseMimeType: "application/json"` + `responseJsonSchema`), JSON garantido. O worker costura direção + boilerplate e manda pro Veo 3.1.
 
 **A regra:** se o campo seria idêntico entre uma peça e outra, é boilerplate. Se muda com a peça, é direção.
 
@@ -190,7 +190,7 @@ Fases 4 e 5 **não são opcionais** — são o motivo do projeto existir. Mas v�
 
 | Risco | Mitigação |
 |---|---|
-| Omni Flash é `preview` — API pode mudar | Isolar atrás de uma interface `GeradorDeVideo` |
+| Veo 3.1 é `preview` — API pode mudar; e o "Omni Flash" do Flow NÃO gera vídeo pela API (só `generateContent`), por isso usamos Veo | Isolar atrás de `gemini.ts` |
 | Imagem base sai errada (rosto muda, roupa muda) | Baixo — é o mesmo Nano Banana Pro, mesmo prompt, mesmas refs. O gate de aprovação já cobre o resto |
 | Direção do modelo vira genérica ("natural movement") e perde o que vende | Few-shot: os 3 prompts que o Lucas já validou entram como exemplo na chamada |
 | Custo escapa | Estimativa antes de gerar + teto mensal por conta |

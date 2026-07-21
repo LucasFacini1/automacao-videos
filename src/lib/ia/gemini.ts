@@ -6,7 +6,9 @@ import { GoogleGenAI, Modality } from "@google/genai";
  */
 
 export const MODELO_IMAGEM = "gemini-3-pro-image"; // Nano Banana Pro
-export const MODELO_VIDEO = "gemini-omni-flash-preview"; // Omni Flash
+// Veo 3.1 Fast: o modelo de vídeo da API (o "Omni Flash" do Flow NÃO é
+// gerador de vídeo pela API — só faz generateContent). Fast ~$0,10/s.
+export const MODELO_VIDEO = "veo-3.1-fast-generate-preview";
 
 let _client: GoogleGenAI | null = null;
 

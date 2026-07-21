@@ -109,7 +109,7 @@ export default async function ContaHome({ params }: { params: Promise<{ id: stri
             {produtos.map((p) => (
               <li key={p.id}>
                 <Link
-                  href={p.imagemBaseId ? `/conta/${conta.id}/novo?ib=${p.imagemBaseId}` : `/conta/${conta.id}`}
+                  href={p.imagemBaseId ? `/conta/${conta.id}/produto/${p.imagemBaseId}` : `/conta/${conta.id}`}
                   className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:border-foreground/15 hover:shadow-[0_2px_16px_-4px_rgb(0_0_0/0.08)]"
                 >
                   <div className="relative aspect-[3/4] overflow-hidden bg-secondary">

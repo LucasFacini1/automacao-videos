@@ -185,6 +185,96 @@ export async function listarProdutos(contaId: string): Promise<ProdutoLista[]> {
   );
 }
 
+// --- estado completo de um produto (a tela do fluxo) ------------------------
+
+export type VideoItem = {
+  id: string;
+  formatoKey: string;
+  status: "na_fila" | "gerando" | "pronto" | "erro";
+  videoUrl: string | null;
+  erro: string | null;
+};
+
+export type CopyFormato = {
+  texto_tela?: { t: string; texto: string }[];
+  descricao?: string;
+  hashtags?: string[];
+};
+
+export type EstadoProduto = {
+  imagemBaseId: string;
+  contaId: string;
+  produtoNome: string;
+  status: StatusImagem;
+  imagemUrl: string | null;
+  produtoUrl: string | null;
+  erroImagem: string | null;
+  temAnalise: boolean;
+  copy: Record<string, CopyFormato>;
+  videos: VideoItem[];
+};
+
+/**
+ * Tudo que a tela do produto precisa, numa consulta só. A tela decide o que
+ * mostrar a partir do `status` + `videos` — nada de passo fingido no cliente.
+ */
+export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoProduto | null> {
+  const userId = await usuarioLogadoId();
+  if (!userId) return null;
+  const db = createAdminClient();
+
+  const { data } = await db
+    .from("imagem_base")
+    .select(
+      `id, status, image_url, erro,
+       produto:produto_id ( nome, image_url, conta_id, conta:conta_id ( user_id ) ),
+       analise ( copy ),
+       video ( id, formato_key, status, video_url, erro )`,
+    )
+    .eq("id", imagemBaseId)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  const produto = data.produto as unknown as {
+    nome: string;
+    image_url: string;
+    conta_id: string;
+    conta: { user_id: string };
+  };
+  if (produto.conta.user_id !== userId) return null;
+
+  const analise = (data.analise as unknown as { copy: Record<string, CopyFormato> }[] | null)?.[0];
+  const videos = (data.video ?? []) as unknown as {
+    id: string;
+    formato_key: string;
+    status: VideoItem["status"];
+    video_url: string | null;
+    erro: string | null;
+  }[];
+
+  return {
+    imagemBaseId: data.id,
+    contaId: produto.conta_id,
+    produtoNome: produto.nome,
+    status: data.status,
+    imagemUrl: data.image_url ? await urlAssinada(db, data.image_url) : null,
+    produtoUrl: produto.image_url ? await urlAssinada(db, produto.image_url) : null,
+    erroImagem: data.erro,
+    temAnalise: Boolean(analise),
+    copy: analise?.copy ?? {},
+    videos: await Promise.all(
+      videos.map(async (v) => ({
+        id: v.id,
+        formatoKey: v.formato_key,
+        status: v.status,
+        videoUrl: v.video_url ? await urlAssinada(db, v.video_url, 3600) : null,
+        erro: v.erro,
+      })),
+    ),
+  };
+}
+
 // --- tela de aprovação ------------------------------------------------------
 
 export type ImagemBaseDetalhe = {

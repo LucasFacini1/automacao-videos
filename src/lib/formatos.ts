@@ -54,39 +54,39 @@ export const FORMATOS: Formato[] = [
     key: "talking",
     nome: "Talking (com fala)",
     temFala: true,
-    duracaoS: 10,
+    duracaoS: 8,
     briefing:
       "Casual talking-to-camera video, as if speaking to a friend. Intimate and charismatic. " +
       "Movement should be minimal and natural — small hand gestures while speaking, and she " +
       "should physically draw attention to the single most distinctive detail of the garment. " +
       "Speech must be in natural Brazilian Portuguese (pt-BR), 1 short sentence, with correct " +
       "pt-BR pronunciation and lip sync matching the speech.",
-    boilerplate: boilerplate({ fala: true, duracaoS: 10 }),
+    boilerplate: boilerplate({ fala: true, duracaoS: 8 }),
   },
   {
     key: "achado_do_dia",
     nome: "Série: Achado do dia (sem fala)",
     temFala: false,
-    duracaoS: 10,
+    duracaoS: 8,
     briefing:
       "Recurring 'find of the day' reveal — energetic and branded, part of an ongoing series. " +
       "Same signature opening pose and same closing pose every episode, so the series is " +
       "instantly recognizable. Between them she moves to show the full outfit and returns to " +
       "front, letting the garment's silhouette read clearly. Natural silent lip sync, mouth " +
       "closed or neutral throughout.",
-    boilerplate: boilerplate({ fala: false, duracaoS: 10 }),
+    boilerplate: boilerplate({ fala: false, duracaoS: 8 }),
   },
   {
     key: "nota_1_a_10",
     nome: "Nota de 1 a 10 (sem fala)",
     temFala: false,
-    duracaoS: 10,
+    duracaoS: 8,
     briefing:
       "A 'rate this fit' reveal: she moves through consecutive angles — front, side, back, side, " +
       "front — with a short pause at each so the viewer can judge the outfit. Confident and " +
       "playful, slightly runway-like but still casual UGC. Single continuous outfit walk, no cuts. " +
       "Natural silent lip sync, mouth stays closed or neutral throughout.",
-    boilerplate: boilerplate({ fala: false, duracaoS: 10 }),
+    boilerplate: boilerplate({ fala: false, duracaoS: 8 }),
   },
 ];
 
