@@ -30,7 +30,7 @@ export default async function Home() {
                   {totalPendentes > 0 && (
                     <>
                       {" · "}
-                      <span className="font-medium text-amber-600">
+                      <span className="font-medium text-amber-400">
                         {totalPendentes} aguardando aprovação
                       </span>
                     </>
@@ -66,7 +66,7 @@ export default async function Home() {
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">{c.nome}</p>
                       </div>
                       {c.pendentes > 0 && (
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                        <span className="shrink-0 rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-medium text-amber-300 ring-1 ring-amber-400/25">
                           {c.pendentes}
                         </span>
                       )}
@@ -110,22 +110,24 @@ export default async function Home() {
 
 function EstadoVazio() {
   return (
-    <div className="mx-auto mt-10 max-w-md rounded-2xl border border-border bg-card px-6 py-12 text-center">
-      <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-        <Clapperboard className="size-6" />
-      </span>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight">Bem-vindo ao Studio</h1>
-      <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-muted-foreground">
-        Crie sua primeira conta e escolha a modelo que vai vestir os produtos nos vídeos.
-      </p>
-      <Button
-        render={<Link href="/conta/nova" />}
-        nativeButton={false}
-        size="lg"
-        className="mt-6 gap-1.5"
-      >
-        <Plus className="size-4" /> Criar primeira conta
-      </Button>
+    <div className="glass-card glow mx-auto mt-10 max-w-md overflow-hidden px-6 py-14 text-center">
+      <div className="relative z-10">
+        <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-brand text-brand-foreground shadow-[0_8px_30px_-6px_var(--brand)]">
+          <Clapperboard className="size-6" />
+        </span>
+        <h1 className="mt-4 text-xl font-semibold tracking-tight">Bem-vindo ao Studio</h1>
+        <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-muted-foreground">
+          Crie sua primeira conta e escolha a modelo que vai vestir os produtos nos vídeos.
+        </p>
+        <Button
+          render={<Link href="/conta/nova" />}
+          nativeButton={false}
+          size="lg"
+          className="mt-6 gap-1.5"
+        >
+          <Plus className="size-4" /> Criar primeira conta
+        </Button>
+      </div>
     </div>
   );
 }

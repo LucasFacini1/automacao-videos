@@ -140,7 +140,7 @@ export function Wizard() {
 
           {/* A referência congela (§3.1). Ela precisa saber ANTES de escolher —
               e que a foto tem que ter o closet, senão o cenário deriva. */}
-          <p className="mt-5 rounded-lg bg-amber-50 px-3.5 py-3 text-sm leading-relaxed text-amber-900">
+          <p className="mt-5 rounded-lg border border-amber-400/20 bg-amber-400/10 px-3.5 py-3 text-sm leading-relaxed text-amber-200">
             <strong>Importante:</strong> a foto tem que ser a modelo já no closet, não um retrato
             solto. É ela que mantém a modelo E o cenário sempre iguais. Dá pra trocar depois, mas só
             na tela da modelo — de propósito.

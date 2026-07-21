@@ -10,17 +10,19 @@ export default function Login() {
     <main className="flex flex-1 flex-col items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-brand text-brand-foreground shadow-[0_8px_30px_-6px_var(--brand)] animate-pulse-glow">
             <Clapperboard className="size-6" />
           </span>
-          <span className="mt-3 font-display text-2xl leading-none">Studio</span>
-          <span className="mt-1.5 text-sm text-muted-foreground">
+          <span className="mt-4 font-display text-3xl leading-none">Studio</span>
+          <span className="mt-2 text-sm text-muted-foreground">
             Vídeos de produto, no automático
           </span>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-[0_1px_3px_rgb(0_0_0/0.04)]">
-          <FormLogin />
+        <div className="glass-card glow overflow-hidden p-6">
+          <div className="relative z-10">
+            <FormLogin />
+          </div>
         </div>
       </div>
     </main>

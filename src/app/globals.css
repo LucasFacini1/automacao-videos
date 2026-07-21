@@ -19,11 +19,6 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
@@ -51,79 +46,87 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+  Design portado do Open-AI-UGC (MIT) — tema "midnight": near-black, texto
+  claro, primary branco, acento violeta pra foco/marca. Glassmorphism e brilho
+  ambiente. É a pegada escuro/tech que o Lucas escolheu.
+
+  Os nomes dos tokens são os do shadcn (nossos componentes já dependem deles),
+  então trocar os VALORES aqui re-estiliza o app inteiro.
+*/
 :root {
-  /* Neutros QUENTES (off-white tipo papel, não branco clínico) + primary
-     quase-preto e um único acento coral. Referência: Anthropic/Apple —
-     minimalismo com temperatura, cor só onde significa algo. */
-  --background: oklch(0.977 0.003 85);
-  --foreground: oklch(0.216 0.004 85);
-  --card: oklch(0.995 0.002 85);
-  --card-foreground: oklch(0.216 0.004 85);
-  --popover: oklch(0.995 0.002 85);
-  --popover-foreground: oklch(0.216 0.004 85);
-  --primary: oklch(0.235 0.005 85);
-  --primary-foreground: oklch(0.985 0.003 85);
-  --secondary: oklch(0.951 0.004 85);
-  --secondary-foreground: oklch(0.235 0.005 85);
-  --muted: oklch(0.951 0.004 85);
-  --muted-foreground: oklch(0.545 0.011 85);
-  --accent: oklch(0.951 0.004 85);
-  --accent-foreground: oklch(0.235 0.005 85);
-  --destructive: oklch(0.553 0.171 25);
-  --border: oklch(0.906 0.005 85);
-  --input: oklch(0.906 0.005 85);
-  --ring: oklch(0.66 0.104 45);
-  /* acento de marca (coral) — marca, foco, destaque pontual. Nunca chapado. */
-  --brand: oklch(0.66 0.104 45);
-  --brand-foreground: oklch(0.985 0.003 85);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #0f0f12;
+  --card-foreground: #f4f4f5;
+  --popover: #151518;
+  --popover-foreground: #f4f4f5;
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+  --secondary: #1c1c21;
+  --secondary-foreground: #f4f4f5;
+  --muted: #1c1c21;
+  --muted-foreground: #a1a1aa;
+  --accent: #1e1e24;
+  --accent-foreground: #f4f4f5;
+  --destructive: #f43f5e;
+  --border: #26262c;
+  --input: #26262c;
+  --ring: #8b5cf6;
+  --brand: #8b5cf6;
+  --brand-hover: #7c3aed;
+  --brand-foreground: #ffffff;
+
+  --glass-bg: rgba(16, 16, 20, 0.66);
+  --glass-border: rgba(120, 120, 135, 0.16);
+  --glass-hover: rgba(120, 120, 135, 0.10);
+
+  --radius: 0.875rem;
+
+  --sidebar: #0c0c0e;
+  --sidebar-foreground: #f4f4f5;
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent: #1c1c21;
+  --sidebar-accent-foreground: #f4f4f5;
+  --sidebar-border: #26262c;
+  --sidebar-ring: #8b5cf6;
 }
 
+/* Mesmos valores no .dark, pra qualquer `dark:` utility também funcionar. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.68 0.17 8);
-  --primary-foreground: oklch(0.16 0.02 8);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.68 0.17 8);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #0f0f12;
+  --card-foreground: #f4f4f5;
+  --popover: #151518;
+  --popover-foreground: #f4f4f5;
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+  --secondary: #1c1c21;
+  --secondary-foreground: #f4f4f5;
+  --muted: #1c1c21;
+  --muted-foreground: #a1a1aa;
+  --accent: #1e1e24;
+  --accent-foreground: #f4f4f5;
+  --destructive: #f43f5e;
+  --border: #26262c;
+  --input: #26262c;
+  --ring: #8b5cf6;
+  --brand: #8b5cf6;
+  --brand-hover: #7c3aed;
+  --brand-foreground: #ffffff;
+  --glass-bg: rgba(16, 16, 20, 0.66);
+  --glass-border: rgba(120, 120, 135, 0.16);
+  --glass-hover: rgba(120, 120, 135, 0.10);
+  --sidebar: #0c0c0e;
+  --sidebar-foreground: #f4f4f5;
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent: #1c1c21;
+  --sidebar-accent-foreground: #f4f4f5;
+  --sidebar-border: #26262c;
+  --sidebar-ring: #8b5cf6;
 }
 
 @layer base {
@@ -132,31 +135,65 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Inter fica bem melhor com estas features: 'cv11' dá o "a"/"g" de uma
-       perna (mais próximo do SF Pro), 'ss01' arruma o "l"/"I". */
     font-feature-settings: "cv11", "ss01";
     font-variant-ligatures: contextual;
     text-rendering: optimizeLegibility;
   }
   html {
     @apply font-sans;
+    color-scheme: dark;
   }
+  h1 { letter-spacing: -0.022em; }
+  h2 { letter-spacing: -0.018em; }
+  h3, h4 { letter-spacing: -0.014em; }
+  .tabular { font-variant-numeric: tabular-nums; }
+}
 
-  /* Títulos com tracking negativo — o detalhe que faz tipografia de produto
-     parecer intencional em vez de default do navegador. Quanto maior o texto,
-     mais fechado. */
-  h1 {
-    letter-spacing: -0.022em;
+@layer components {
+  /* Glassmorphism — painel translúcido com blur (portado do Open-AI-UGC) */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--glass-border);
   }
-  h2 {
-    letter-spacing: -0.018em;
+  .glass-card {
+    position: relative;
+    background: var(--glass-bg);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
   }
-  h3,
-  h4 {
-    letter-spacing: -0.014em;
+  /* brilho ambiente no canto do card — o toque premium deles */
+  .glow::before {
+    content: "";
+    position: absolute;
+    top: -6rem; right: -6rem;
+    width: 12rem; height: 12rem;
+    background: color-mix(in oklab, var(--brand) 22%, transparent);
+    border-radius: 9999px;
+    filter: blur(64px);
+    pointer-events: none;
+    z-index: 0;
   }
-  /* Números em tabelas/stats não podem "dançar" ao atualizar. */
-  .tabular {
-    font-variant-numeric: tabular-nums;
-  }
+}
+
+/* Scrollbar premium */
+.scrollbar-subtle::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-subtle::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-subtle::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+.scrollbar-subtle::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+* { scrollbar-color: var(--border) transparent; }
+
+/* Animações (portadas) */
+@keyframes pulseGlow { 0%,100%{opacity:.55;transform:scale(1);} 50%{opacity:1;transform:scale(1.02);} }
+.animate-pulse-glow { animation: pulseGlow 2.4s infinite ease-in-out; }
+@keyframes gradientX { 0%,100%{background-position:0% 50%;} 50%{background-position:100% 50%;} }
+.animate-gradient-x { background-size: 200% 200%; animation: gradientX 6s ease infinite; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.animate-fade-up { animation: fadeUp .5s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-glow, .animate-gradient-x, .animate-fade-up { animation: none; }
 }

@@ -30,18 +30,18 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#faf9f7",
+  themeColor: "#09090b",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="pt-BR"
-      className={`${inter.variable} ${serif.variable} h-full antialiased`}
+      className={`dark ${inter.variable} ${serif.variable} h-full antialiased`}
     >
-      <body className="bg-background text-foreground min-h-full flex flex-col">
+      <body className="bg-background text-foreground min-h-full flex flex-col scrollbar-subtle">
         {children}
-        <Toaster position="top-center" />
+        <Toaster position="top-center" theme="dark" />
       </body>
     </html>
   );

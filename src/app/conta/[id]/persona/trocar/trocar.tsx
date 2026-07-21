@@ -64,7 +64,7 @@ export function Trocar({
         </div>
       </div>
 
-      <p className="mt-4 rounded-lg bg-amber-50 px-3.5 py-3 text-sm leading-relaxed text-amber-900">
+      <p className="mt-4 rounded-lg border border-amber-400/20 bg-amber-400/10 px-3.5 py-3 text-sm leading-relaxed text-amber-200">
         A nova foto tem que ser a modelo <strong>já no closet</strong>, não um retrato solto — é
         ela que mantém o cenário igual. Os produtos que já têm vídeo não mudam.
       </p>
