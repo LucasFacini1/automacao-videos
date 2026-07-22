@@ -104,6 +104,9 @@ export async function gerarVideo(args: {
       numberOfVideos: 1,
       durationSeconds: args.duracaoS,
       aspectRatio: "9:16",
+      // 1080p pela nitidez (equilíbrio: mantém o modelo Fast, sobe a resolução).
+      // Se o Fast recusar 9:16 em 1080p, é só voltar pra "720p" aqui.
+      resolution: "1080p",
       // Só o formato com fala precisa de áudio. Nos silenciosos, gerar áudio pra
       // jogar fora é desperdício e às vezes mete ruído/voz estranha no clipe.
       generateAudio: args.comAudio,

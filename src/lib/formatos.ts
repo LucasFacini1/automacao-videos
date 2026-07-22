@@ -1,21 +1,27 @@
 /**
  * Formatos de vídeo. Ver PLAN.md §4 e §5.
  *
- * PROVISÓRIOS — o Lucas quer montar uma biblioteca maior (dancinhas, movimento,
- * desfilando) depois do MVP rodar. O shape aqui mapeia 1:1 para uma tabela
- * `formato`, então virar biblioteca editável é migração, não refatoração.
+ * Estilos por MOVIMENTO (o que a câmera/modelo faz): falando, desfile, dançinha,
+ * close no detalhe. A legenda é uma só por produto (ver direcao.ts) — por isso o
+ * estilo é sobre a cena, não sobre o gancho de legenda. Na tela, a usuária marca
+ * os estilos e quantas variações de cada.
+ *
+ * Ainda em código, mas o shape mapeia 1:1 para uma tabela `formato` — virar
+ * biblioteca editável (adicionar estilo sem deploy) é migração, não refatoração.
  *
  * A divisão que importa:
- *   - `boilerplate` = igual em todo vídeo. Fica aqui, o Claude nunca toca.
- *   - `briefing`    = a intenção do formato. Vai pro Claude, que escreve a
- *                     direção (framing/movement/destaque/speech) olhando a peça.
+ *   - `boilerplate` = igual em todo vídeo. Fica aqui, o modelo nunca toca.
+ *   - `briefing`    = a intenção do estilo. Vai pro modelo de direção, que
+ *                     escreve framing/movement/destaque/speech olhando a peça.
  */
 
-export type FormatoKey = "talking" | "achado_do_dia" | "nota_1_a_10";
+export type FormatoKey = "falando" | "desfile" | "dancinha" | "detalhe";
 
 export type Formato = {
   key: FormatoKey;
   nome: string;
+  /** Uma linha, PT-BR, sem jargão — o que a tia lê pra saber o que é este estilo. */
+  resumo: string;
   temFala: boolean;
   duracaoS: number;
   briefing: string;
@@ -28,8 +34,10 @@ const NEGATIVE_BASE =
   "plastic skin, deformed hands, watermark, text, subtitles, logos, stiff expression, " +
   "exaggerated movement, distorted body or hands";
 
-/** Constraints técnicas — nunca mudam. */
-const TECH = "Handheld vertical phone video, soft natural lighting, realistic casual UGC, 9:16";
+/** Constraints técnicas — nunca mudam. Empurram pro look natural, sem cara de anúncio. */
+const TECH =
+  "Handheld vertical phone video, soft natural lighting, candid and unposed authentic " +
+  "creator footage, subtle natural motion and real skin, 9:16";
 
 function boilerplate(opts: { fala: boolean; duracaoS: number; extraNegative?: string }) {
   const negative = [
@@ -51,8 +59,9 @@ function boilerplate(opts: { fala: boolean; duracaoS: number; extraNegative?: st
 
 export const FORMATOS: Formato[] = [
   {
-    key: "talking",
-    nome: "Talking (com fala)",
+    key: "falando",
+    nome: "Falando",
+    resumo: "Ela conversa com a câmera contando sobre a peça.",
     temFala: true,
     duracaoS: 8,
     briefing:
@@ -64,28 +73,42 @@ export const FORMATOS: Formato[] = [
     boilerplate: boilerplate({ fala: true, duracaoS: 8 }),
   },
   {
-    key: "achado_do_dia",
-    nome: "Série: Achado do dia (sem fala)",
+    key: "desfile",
+    nome: "Desfile",
+    resumo: "Ela gira e mostra o look de vários ângulos.",
     temFala: false,
     duracaoS: 8,
     briefing:
-      "Recurring 'find of the day' reveal — energetic and branded, part of an ongoing series. " +
-      "Same signature opening pose and same closing pose every episode, so the series is " +
-      "instantly recognizable. Between them she moves to show the full outfit and returns to " +
-      "front, letting the garment's silhouette read clearly. Natural silent lip sync, mouth " +
-      "closed or neutral throughout.",
+      "A runway-style reveal to show the whole outfit: she walks a step toward the camera, then " +
+      "moves through consecutive angles — front, side profile, a full turn to the back — with a " +
+      "brief confident pause at each so the silhouette and the way the garment falls read " +
+      "clearly. Single continuous walk, no cuts. Natural silent lip sync, mouth closed or neutral.",
     boilerplate: boilerplate({ fala: false, duracaoS: 8 }),
   },
   {
-    key: "nota_1_a_10",
-    nome: "Nota de 1 a 10 (sem fala)",
+    key: "dancinha",
+    nome: "Dançinha",
+    resumo: "Uma dancinha rápida com a roupa em movimento.",
     temFala: false,
     duracaoS: 8,
     briefing:
-      "A 'rate this fit' reveal: she moves through consecutive angles — front, side, back, side, " +
-      "front — with a short pause at each so the viewer can judge the outfit. Confident and " +
-      "playful, slightly runway-like but still casual UGC. Single continuous outfit walk, no cuts. " +
-      "Natural silent lip sync, mouth stays closed or neutral throughout.",
+      "A short, trendy TikTok dance moment in place — casual, fun and flattering, the kind a real " +
+      "creator does. The movement is rhythmic but controlled so the outfit stays readable and the " +
+      "garment moves naturally with her (fabric sways, skirt flares). Not chaotic, not exaggerated. " +
+      "Natural silent lip sync, mouth closed or neutral throughout.",
+    boilerplate: boilerplate({ fala: false, duracaoS: 8 }),
+  },
+  {
+    key: "detalhe",
+    nome: "Close no detalhe",
+    resumo: "A câmera dá um close no detalhe da peça.",
+    temFala: false,
+    duracaoS: 8,
+    briefing:
+      "Starts framed on the outfit, then the camera moves in slow and deliberate for a close-up on " +
+      "the single most distinctive detail of the garment (a cutout, the fabric texture, a hem, a " +
+      "strap), holding on it so the texture and finish read. Minimal body movement — the camera " +
+      "does the work. Natural silent lip sync, mouth closed or neutral throughout.",
     boilerplate: boilerplate({ fala: false, duracaoS: 8 }),
   },
 ];

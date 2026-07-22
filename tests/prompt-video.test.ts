@@ -32,14 +32,14 @@ test("formato sem fala descarta o speech mesmo se vier preenchido", () => {
 });
 
 test("formato com fala inclui o speech literal", () => {
-  const p = montar("talking");
+  const p = montar("falando");
   assert.ok(p.includes("SPEECH:"));
   assert.ok(p.includes(DIRECAO.speech));
   assert.ok(p.includes("pt-BR"));
 });
 
 test("negative bloqueia inglês quando tem fala, e fala quando é mudo", () => {
-  assert.ok(montar("talking").includes("English speech"));
+  assert.ok(montar("falando").includes("English speech"));
 
   for (const f of FORMATOS.filter((f) => !f.temFala)) {
     const p = montar(f.key);

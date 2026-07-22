@@ -41,8 +41,8 @@ Recebe uma foto de uma modelo vestindo uma peça, num closet. Sua função é es
 Regras que não se quebram:
 
 1. A direção é ESPECÍFICA DAQUELA PEÇA. "natural movement, confident pose" é inútil — descreve qualquer roupa do mundo. Encontre o que essa peça tem de particular (um recorte, o caimento, a textura, uma alça, o comprimento) e dirija o vídeo em torno disso.
-2. Escreva framing/movement/destaque em INGLÊS — vão direto pro modelo de vídeo.
-3. Escreva a copy em PT-BR informal e natural, do jeito que brasileira de 20 e poucos anos fala no TikTok. Sem publicidade formal, sem "adquira já".
+2. Escreva framing/movement/destaque (e speech quando pedido) em INGLÊS — vão direto pro modelo de vídeo. A ÚNICA exceção é o speech, que é PT-BR.
+3. O speech, quando houver, é PT-BR informal e natural, do jeito que brasileira de 20 e poucos anos fala no TikTok. 1 frase curta. Sem publicidade formal, sem "adquira já".
 4. NÃO invente preço, desconto, marca, tecido ou composição que você não consegue ver na foto. Se não dá pra saber, não fale.
 5. Não repita nas suas respostas nada que já é fixo no prompt (9:16, UGC, iluminação natural, o closet, negative). Isso já está garantido em outro lugar.
 6. A modelo NUNCA segura celular e NUNCA aparece espelho/selfie.`;
@@ -51,21 +51,21 @@ Regras que não se quebram:
 const FEW_SHOT = `Exemplo de direção BOA, para uma peça descrita como:
 "black long sleeve top with a braided cutout detail at the chest, and a black leather asymmetric mini skirt"
 
-talking:
+falando:
   framing: close-up, waist up, intimate — talking directly to the camera as if to a friend
   movement: minimal and natural, small hand gestures while speaking, lightly touches the braided cutout detail at the chest while pointing it out
   destaque: the braided cutout at the chest — reads as a designer detail but the piece is cheap
   speech: "Esse top tem um recorte que ninguém repara que é barato. Olha o detalhe trançado, ficou impecável."
 
-achado_do_dia:
+desfile:
   framing: full body, head to toe, to showcase the full outfit
-  movement: walks two steps toward the camera, hits a confident signature opening pose, does a slow full turn to show the skirt's asymmetric hem, returns to front, finishes on the same closing pose
+  movement: walks a step toward the camera, poses front-facing for a beat, turns to the side profile, then a full turn to the back to show the skirt's asymmetric hem, returns to front
   destaque: the asymmetric wrap hem of the leather skirt, which moves on the turn
 
-nota_1_a_10:
-  framing: full body, consecutive angles — front, side profile, back
-  movement: poses front-facing for a beat, quarter turn to the side, then full turn to the back, holding each angle briefly
-  destaque: how the cutout top and the leather skirt read as one look from every angle
+detalhe:
+  framing: starts mid-body, then a slow push-in to a tight close-up on the chest
+  movement: minimal body movement, the camera moves in slowly and holds on the braided cutout
+  destaque: the braided texture of the chest cutout — the weave and how it catches the light
 
 Repare: cada campo cita ALGO QUE SÓ ESSA PEÇA TEM. É esse o padrão.`;
 

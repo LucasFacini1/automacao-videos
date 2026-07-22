@@ -32,7 +32,7 @@ function usePolling(ativo: boolean, ms = 4000) {
 export function Produto({ estado }: { estado: EstadoProduto }) {
   const router = useRouter();
   const [agindo, iniciar] = useTransition();
-  const [qtd, setQtd] = useState<Record<string, number>>({ talking: 1 });
+  const [qtd, setQtd] = useState<Record<string, number>>({ falando: 1 });
 
   const videosPendentes = estado.videos.some((v) => v.status === "na_fila" || v.status === "gerando");
   const esperandoFoto = estado.status === "gerando";
@@ -195,7 +195,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
   // ------------------------------------------- aprovada, ainda sem vídeos
   if (estado.videos.length === 0) {
     return (
-      <Secao titulo="Que vídeos você quer?" sub="Pode pedir mais de um do mesmo tipo — sai diferente cada vez.">
+      <Secao titulo="Que vídeos você quer?" sub="Marque os estilos e quantas variações de cada — sai diferente cada vez.">
         <ul className="space-y-3">
           {FORMATOS.map((f) => {
             const n = qtd[f.key] ?? 0;
@@ -210,10 +210,13 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
                 <div className="flex items-start gap-3">
                   <Checkbox id={f.key} checked={on} onCheckedChange={() => alternar(f.key)} className="mt-0.5" />
                   <label htmlFor={f.key} className="min-w-0 flex-1 cursor-pointer">
-                    <span className="block font-medium leading-snug">{f.nome}</span>
-                    <span className="mt-0.5 block text-sm text-muted-foreground">
-                      {f.duracaoS}s · {f.temFala ? "ela fala" : "sem fala"}
+                    <span className="block font-medium leading-snug">
+                      {f.nome}
+                      {f.temFala && (
+                        <span className="ml-2 align-middle text-xs font-normal text-muted-foreground">com voz</span>
+                      )}
                     </span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">{f.resumo}</span>
                   </label>
                   {on && (
                     <div className="flex shrink-0 items-center rounded-lg border border-border bg-background">
