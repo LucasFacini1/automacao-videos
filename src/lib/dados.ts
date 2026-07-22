@@ -51,7 +51,8 @@ export async function listarContasComResumo(): Promise<ContaResumo[]> {
     id: string;
     handle: string;
     nome: string;
-    persona: { ref_image_url: string }[] | null;
+    // persona.conta_id é unique (1-pra-1) — o Supabase embeda como objeto, não array
+    persona: { ref_image_url: string } | null;
     produto: Prod[] | null;
   };
 
@@ -65,7 +66,7 @@ export async function listarContasComResumo(): Promise<ContaResumo[]> {
         videos += ibs.reduce((s, ib) => s + (ib.video ?? []).filter((v) => v.status === "pronto").length, 0);
         if (ibs.some((ib) => ib.status === "pronta")) pendentes++;
       }
-      const ref = c.persona?.[0]?.ref_image_url;
+      const ref = c.persona?.ref_image_url;
       return {
         id: c.id,
         handle: c.handle,
@@ -110,8 +111,9 @@ export async function pegarConta(contaId: string): Promise<Conta | null> {
 
   if (!data) return null;
 
+  // persona.conta_id é unique (1-pra-1) — o Supabase embeda como objeto, não array
   type P = { ref_image_url: string; cabelo: string; make: string; cenario: string; unhas: string };
-  const p = (data.persona as unknown as P[] | null)?.[0];
+  const p = data.persona as unknown as P | null;
 
   return {
     id: data.id,
@@ -244,7 +246,8 @@ export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoPr
   };
   if (produto.conta.user_id !== userId) return null;
 
-  const analise = (data.analise as unknown as { copy: Record<string, CopyFormato> }[] | null)?.[0];
+  // analise.imagem_base_id é unique (1-pra-1) — o Supabase embeda como objeto, não array
+  const analise = data.analise as unknown as { copy: Record<string, CopyFormato> } | null;
   const videos = (data.video ?? []) as unknown as {
     id: string;
     formato_key: string;
