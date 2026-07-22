@@ -41,8 +41,8 @@ function boilerplate(opts: { fala: boolean; duracaoS: number; extraNegative?: st
     .join(", ");
 
   return [
-    "[Reference: {{referencia}}]",
-    "Same woman and closet as her usual reference.",
+    // Uma linha só trava identidade + cenário (antes isto vinha repetido).
+    "[Reference: {{referencia}}. Keep her face, body and closet identical to the reference.]",
     "",
     `${TECH}, ~${opts.duracaoS}s.`,
     `Negative: ${negative}.`,

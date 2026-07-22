@@ -340,7 +340,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
         })}
       </ul>
 
-      {prontos.length > 0 && <Legendas copy={estado.copy} />}
+      {prontos.length > 0 && estado.copy && <Legenda copy={estado.copy} />}
 
       <div className="mt-8">
         <Button
@@ -385,50 +385,30 @@ function AvisoWorker() {
   );
 }
 
-function Legendas({ copy }: { copy: EstadoProduto["copy"] }) {
-  const entradas = Object.entries(copy);
-  if (entradas.length === 0) return null;
+function Legenda({ copy }: { copy: NonNullable<EstadoProduto["copy"]> }) {
+  const texto = [copy.descricao, (copy.hashtags ?? []).map((h) => `#${h}`).join(" ")]
+    .filter(Boolean)
+    .join("\n\n");
 
   return (
-    <div className="mt-8 space-y-3">
-      <h2 className="text-sm font-medium">Legendas prontas</h2>
-      {entradas.map(([key, c]) => {
-        const f = FORMATOS_POR_KEY[key as keyof typeof FORMATOS_POR_KEY];
-        const texto = [c.descricao, (c.hashtags ?? []).map((h) => `#${h}`).join(" ")]
-          .filter(Boolean)
-          .join("\n\n");
-        return (
-          <div key={key} className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2">
-              <p className="min-w-0 flex-1 truncate text-sm font-medium">{f?.nome ?? key}</p>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1 text-xs"
-                onClick={() => {
-                  navigator.clipboard?.writeText(texto);
-                  toast.success("Legenda copiada");
-                }}
-              >
-                <Copy className="size-3.5" /> Copiar
-              </Button>
-            </div>
-            {c.texto_tela && c.texto_tela.length > 0 && (
-              <ul className="mt-2 space-y-1">
-                {c.texto_tela.map((l, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-muted-foreground">
-                    <span className="shrink-0 tabular text-xs text-muted-foreground/70">{l.t}</span>
-                    <span>{l.texto}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {c.descricao && (
-              <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">{texto}</p>
-            )}
-          </div>
-        );
-      })}
+    <div className="mt-8">
+      <h2 className="mb-2 text-sm font-medium">Legenda pronta</h2>
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex items-start gap-2">
+          <p className="min-w-0 flex-1 whitespace-pre-line text-sm text-muted-foreground">{texto}</p>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 shrink-0 gap-1 text-xs"
+            onClick={() => {
+              navigator.clipboard?.writeText(texto);
+              toast.success("Legenda copiada");
+            }}
+          >
+            <Copy className="size-3.5" /> Copiar
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

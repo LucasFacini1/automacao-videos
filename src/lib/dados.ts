@@ -197,10 +197,9 @@ export type VideoItem = {
   erro: string | null;
 };
 
-export type CopyFormato = {
-  texto_tela?: { t: string; texto: string }[];
-  descricao?: string;
-  hashtags?: string[];
+export type Legenda = {
+  descricao: string;
+  hashtags: string[];
 };
 
 export type EstadoProduto = {
@@ -212,7 +211,7 @@ export type EstadoProduto = {
   produtoUrl: string | null;
   erroImagem: string | null;
   temAnalise: boolean;
-  copy: Record<string, CopyFormato>;
+  copy: Legenda | null;
   videos: VideoItem[];
 };
 
@@ -247,7 +246,7 @@ export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoPr
   if (produto.conta.user_id !== userId) return null;
 
   // analise.imagem_base_id é unique (1-pra-1) — o Supabase embeda como objeto, não array
-  const analise = data.analise as unknown as { copy: Record<string, CopyFormato> } | null;
+  const analise = data.analise as unknown as { copy: Legenda } | null;
   const videos = (data.video ?? []) as unknown as {
     id: string;
     formato_key: string;
@@ -265,7 +264,7 @@ export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoPr
     produtoUrl: produto.image_url ? await urlAssinada(db, produto.image_url) : null,
     erroImagem: data.erro,
     temAnalise: Boolean(analise),
-    copy: analise?.copy ?? {},
+    copy: analise?.copy ?? null,
     videos: await Promise.all(
       videos.map(async (v) => ({
         id: v.id,

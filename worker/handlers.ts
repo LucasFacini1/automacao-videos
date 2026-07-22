@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { FORMATOS, FORMATOS_POR_KEY, type FormatoKey } from "@/lib/formatos";
 import { promptImagemBase } from "@/lib/prompts";
 import { gerarImagemBase, gerarVideo, MODELO_VIDEO } from "@/lib/ia/gemini";
-import { analisarImagemBase, escreverLegendas, montarPromptVideo } from "@/lib/ia/direcao";
+import { analisarImagemBase, escreverLegenda, montarPromptVideo } from "@/lib/ia/direcao";
 import { baixarInline, subirBase64, subirBuffer } from "@/lib/storage";
 
 export type Job = {
@@ -108,24 +108,17 @@ export async function analisar(db: SupabaseClient, job: Job): Promise<void> {
 
   const imagem = await baixarInline(db, ib.image_url);
 
-  // Passo 1: direção do vídeo. Passo 2: copy PT-BR ancorada na peça. Separados
-  // de propósito (ver o doc no topo de direcao.ts). A copy usa a descrição da
-  // peça que o passo 1 produziu, então rodam em sequência.
+  // Passo 1: direção do vídeo. Passo 2: UMA legenda PT-BR ancorada na peça.
+  // Separados de propósito (ver o doc no topo de direcao.ts). A legenda usa a
+  // descrição da peça que o passo 1 produziu, então rodam em sequência.
   const analise = await analisarImagemBase({ imagemBase: imagem, formatos: FORMATOS });
-  const legendas = await escreverLegendas({
-    imagemBase: imagem,
-    descricaoRoupa: analise.descricao_roupa,
-    formatos: FORMATOS,
-  });
+  const legenda = await escreverLegenda({ imagemBase: imagem, descricaoRoupa: analise.descricao_roupa });
 
   const direcao: Record<string, unknown> = {};
-  const copy: Record<string, unknown> = {};
 
   for (const f of FORMATOS) {
     const v = analise.videos[f.key] as Record<string, unknown> | undefined;
     if (!v) throw new Error(`Direção não devolveu o formato '${f.key}'.`);
-    const l = legendas[f.key];
-    if (!l) throw new Error(`Legendas não devolveram o formato '${f.key}'.`);
 
     direcao[f.key] = {
       framing: v.framing,
@@ -133,11 +126,11 @@ export async function analisar(db: SupabaseClient, job: Job): Promise<void> {
       destaque: v.destaque,
       ...(f.temFala ? { speech: v.speech } : {}),
     };
-    copy[f.key] = { texto_tela: l.texto_tela, descricao: l.descricao, hashtags: l.hashtags };
   }
 
+  // copy: uma legenda só pro produto (descrição + hashtags), não por formato.
   const { error: eIns } = await db.from("analise").upsert(
-    { imagem_base_id: ib.id, descricao_roupa: analise.descricao_roupa, direcao, copy },
+    { imagem_base_id: ib.id, descricao_roupa: analise.descricao_roupa, direcao, copy: legenda },
     { onConflict: "imagem_base_id" },
   );
   if (eIns) throw new Error(`Falha ao gravar análise: ${eIns.message}`);
@@ -191,6 +184,7 @@ export async function gerarVideoHandler(db: SupabaseClient, job: Job): Promise<v
     prompt,
     imagemBase: imagem,
     duracaoS: formato.duracaoS,
+    comAudio: formato.temFala,
     onProgresso: (n) => console.log(`  [${MODELO_VIDEO}] ${v.id} aguardando... (${n * 10}s)`),
   });
 

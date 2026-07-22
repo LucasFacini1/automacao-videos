@@ -90,6 +90,7 @@ export async function gerarVideo(args: {
   prompt: string;
   imagemBase: ImagemInline;
   duracaoS: number;
+  comAudio: boolean;
   onProgresso?: (tentativa: number) => void;
 }): Promise<{ uri: string }> {
   const INTERVALO_MS = 10_000;
@@ -103,6 +104,9 @@ export async function gerarVideo(args: {
       numberOfVideos: 1,
       durationSeconds: args.duracaoS,
       aspectRatio: "9:16",
+      // Só o formato com fala precisa de áudio. Nos silenciosos, gerar áudio pra
+      // jogar fora é desperdício e às vezes mete ruído/voz estranha no clipe.
+      generateAudio: args.comAudio,
     },
   });
 

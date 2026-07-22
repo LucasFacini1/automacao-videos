@@ -161,81 +161,51 @@ export async function analisarImagemBase(args: {
   return analise;
 }
 
-// --- passo 2: legendas (copy PT-BR) ------------------------------------------
+// --- passo 2: legenda (copy PT-BR) -------------------------------------------
 
-const COPY_SYSTEM = `Você escreve a copy de vídeos de uma afiliada do TikTok Shop no Brasil — a mesma pessoa de todos os posts do perfil, uma menina de 20 e poucos anos que mostra achados de moda.
+const COPY_SYSTEM = `Você escreve a legenda do post de uma afiliada do TikTok Shop no Brasil — uma menina de 20 e poucos anos que mostra achados de moda.
 
-Recebe a FOTO da peça e uma descrição dela. Escreve, para cada vídeo: o texto que aparece na tela, a legenda do post e as hashtags.
+Recebe a FOTO da peça e uma descrição dela. Escreve UMA legenda pro post (a mesma serve pros vídeos daquela peça) e as hashtags. Nada de texto na tela.
 
 O que faz uma legenda BOA aqui (siga à risca):
 
-1. ANCORE NA PEÇA DA FOTO. Toda legenda tem que citar algo concreto que dá pra ver — o recorte, o caimento, a cor, o tecido, o comprimento. "Esse look tá com uma vibe chic" é lixo: descreve qualquer roupa. "Esse recorte lateral faz a cintura parecer outra" vende ESTA peça.
-2. VOZ REAL de TikTok brasileiro, informal, como quem manda áudio pra amiga. Nada de publicidade formal ("adquira já", "imperdível"). Pode gaguejar de empolgação, usar "gente", "amiga", "confia".
-3. ARCO: o texto na tela PRENDE nos 3 primeiros segundos (uma curiosidade, um choque, uma pergunta), depois ENTREGA. A legenda do post fecha com um empurrãozinho leve pro link ou pros comentários — sem forçar.
+1. ANCORE NA PEÇA DA FOTO. Cite algo concreto que dá pra ver — o recorte, o caimento, a cor, o tecido, o comprimento. "Esse look tá com uma vibe chic" é lixo: descreve qualquer roupa. "Esse recorte lateral faz a cintura parecer outra" vende ESTA peça.
+2. VOZ REAL de TikTok brasileiro, informal, como quem manda áudio pra amiga. Nada de publicidade formal ("adquira já", "imperdível"). Pode usar "gente", "amiga", "confia".
+3. 1 a 2 frases. Fecha com um empurrãozinho leve pro link ou pros comentários — sem forçar.
 4. NÃO INVENTE preço, desconto, marca, tecido ou composição que você não vê na foto. Se não dá pra saber, não fala.
-5. EMOJI com parcimônia (0 a 1 por linha). Hashtags: misture 1-2 amplas (#tiktokshop #achadinhos) com 1-2 específicas do que a peça é (#bodysuit #sainhadecouro). Sem "#" na resposta.
-6. Cada formato tem uma pegada:
-   - vídeo com fala: o texto na tela reforça o que ela fala, não repete igual.
-   - "achado do dia": enquadra como descoberta, série ("mais um achado pra vocês").
-   - "nota de 1 a 10": puxa engajamento, pede a nota nos comentários.`;
+5. EMOJI com parcimônia (0 a 1). Hashtags: 4 a 6, misturando amplas (#tiktokshop #achadinhos) com específicas do que a peça é (#bodysuit #sainhadecouro). Sem "#" na resposta.`;
 
-const COPY_FEW_SHOT = `Exemplo de copy BOA, para a peça:
+const COPY_FEW_SHOT = `Exemplo de legenda BOA, para a peça:
 "black long sleeve top with a braided cutout at the chest, and a black leather asymmetric mini skirt"
 
-achado_do_dia:
-  texto_tela: [{t: "0-3s", texto: "achado que parece caro e não é 🤝"}, {t: "3-8s", texto: "esse trançado no busto mudou tudo"}]
-  descricao: "gente esse trançado no decote engana qualquer um, ninguém acredita no preço. link nos comentários 🖤"
-  hashtags: [tiktokshop, achadinhos, lookdodia, sainhadecouro]
+descricao: "gente esse trançado no decote engana qualquer um, ninguém acredita no preço 🖤 corre no link antes de esgotar"
+hashtags: [tiktokshop, achadinhos, lookdodia, sainhadecouro, modafeminina]
 
 Repare: cita o TRANÇADO e a SAINHA DE COURO — coisas da foto. Não serviria pra outra roupa.`;
 
-/** Schema das legendas — igual pra todo formato. */
-function schemaLegendas(formatos: Formato[]): JsonSchema {
-  const legenda: JsonSchema = {
-    type: "object",
-    properties: {
-      texto_tela: {
-        type: "array",
-        description: "Textos que aparecem na tela (CapCut), na ordem. 1 a 3 linhas.",
-        items: {
-          type: "object",
-          properties: {
-            t: { type: "string", description: 'Janela em segundos, ex: "0-3s".' },
-            texto: { type: "string", description: "Texto na tela, PT-BR. Curto. No máx 1 emoji." },
-          },
-          required: ["t", "texto"],
-        },
-      },
-      descricao: { type: "string", description: "Legenda do post, PT-BR, 1-2 frases, fecha com empurrão leve pro link/comentários." },
-      hashtags: { type: "array", items: { type: "string" }, description: 'Hashtags sem o "#". Misture amplas e específicas da peça.' },
-    },
-    required: ["texto_tela", "descricao", "hashtags"],
-  };
+const SCHEMA_LEGENDA: JsonSchema = {
+  type: "object",
+  properties: {
+    descricao: { type: "string", description: "Legenda do post, PT-BR, 1-2 frases, fecha com empurrão leve pro link/comentários." },
+    hashtags: { type: "array", items: { type: "string" }, description: 'Hashtags sem o "#" (4 a 6). Misture amplas e específicas da peça.' },
+  },
+  required: ["descricao", "hashtags"],
+};
 
-  const props: Record<string, JsonSchema> = {};
-  for (const f of formatos) props[f.key] = legenda;
-  return { type: "object", properties: props, required: formatos.map((f) => f.key) };
-}
-
-export type LegendaFormato = {
-  texto_tela: { t: string; texto: string }[];
+export type Legenda = {
   descricao: string;
   hashtags: string[];
 };
 
 /**
- * Passo 2: olha a foto (de novo, direto) e escreve a copy PT-BR ancorada na
- * peça. Separado da direção de propósito — ver o doc no topo do arquivo.
+ * Passo 2: olha a foto (de novo, direto) e escreve UMA legenda PT-BR ancorada
+ * na peça. Separado da direção de propósito — ver o doc no topo do arquivo.
+ * Uma legenda por produto, não uma por vídeo — a peça é a mesma.
  */
-export async function escreverLegendas(args: {
+export async function escreverLegenda(args: {
   imagemBase: { base64: string; mimeType: string };
   descricaoRoupa: string;
-  formatos: Formato[];
-}): Promise<Record<string, LegendaFormato>> {
-  const pedido = args.formatos
-    .map((f) => `### ${f.key} (${f.duracaoS}s, ${f.temFala ? "ela fala no vídeo" : "sem fala"})`)
-    .join("\n");
-
+}): Promise<Legenda> {
   const resp = await client().models.generateContent({
     model: MODELO,
     contents: [
@@ -243,32 +213,31 @@ export async function escreverLegendas(args: {
         role: "user",
         parts: [
           { inlineData: { data: args.imagemBase.base64, mimeType: args.imagemBase.mimeType } },
-          {
-            text: `${COPY_FEW_SHOT}\n\nA peça da foto: ${args.descricaoRoupa}\n\nAgora escreva a copy destes vídeos:\n\n${pedido}`,
-          },
+          { text: `${COPY_FEW_SHOT}\n\nA peça da foto: ${args.descricaoRoupa}\n\nAgora escreva a legenda e as hashtags desta peça.` },
         ],
       },
     ],
     config: {
       systemInstruction: COPY_SYSTEM,
       responseMimeType: "application/json",
-      responseJsonSchema: schemaLegendas(args.formatos),
+      responseJsonSchema: SCHEMA_LEGENDA,
     },
   });
 
   const texto = resp.text;
   if (!texto) {
     const motivo = resp.candidates?.[0]?.finishReason ?? "desconhecido";
-    throw new Error(`Gemini não devolveu legendas (finishReason: ${motivo}).`);
+    throw new Error(`Gemini não devolveu legenda (finishReason: ${motivo}).`);
   }
 
-  let legendas: Record<string, LegendaFormato>;
+  let legenda: Legenda;
   try {
-    legendas = JSON.parse(texto) as Record<string, LegendaFormato>;
+    legenda = JSON.parse(texto) as Legenda;
   } catch {
-    throw new Error(`Legendas vieram fora de JSON: ${texto.slice(0, 200)}`);
+    throw new Error(`Legenda veio fora de JSON: ${texto.slice(0, 200)}`);
   }
-  return legendas;
+  if (!legenda.descricao) throw new Error("Legenda veio sem descrição.");
+  return legenda;
 }
 
 // --- costura ------------------------------------------------------------------
