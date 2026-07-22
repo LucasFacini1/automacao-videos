@@ -1,7 +1,8 @@
 import { GoogleGenAI, Modality } from "@google/genai";
+import { ErroSemRetentar } from "@/lib/erros";
 
 /**
- * Google AI: imagem base (Nano Banana Pro) e vídeo (Omni Flash).
+ * Google AI: imagem base (Nano Banana Pro) e vídeo (Veo 3.1 Fast).
  * Ver PLAN.md §2.
  */
 
@@ -61,10 +62,13 @@ export async function gerarImagemBase(args: {
   const img = parts.find((p) => p.inlineData?.data);
 
   if (!img?.inlineData?.data) {
-    // Recusa de safety ou filtro devolve 200 com texto, não erro HTTP.
+    // Recusa de safety ou filtro devolve 200 com texto, não erro HTTP. É
+    // determinístico — a mesma foto barra sempre, então não adianta retentar.
     const texto = parts.find((p) => p.text)?.text;
-    throw new Error(
-      `Nano Banana não devolveu imagem. ${texto ? `Modelo disse: ${texto}` : `finishReason: ${resp.candidates?.[0]?.finishReason ?? "desconhecido"}`}`,
+    const motivo = resp.candidates?.[0]?.finishReason ?? "desconhecido";
+    throw new ErroSemRetentar(
+      `Nano Banana não devolveu imagem. ${texto ? `Modelo disse: ${texto}` : `finishReason: ${motivo}`}`,
+      "A foto do produto foi barrada pelo filtro do gerador. Tente enviar outra imagem do produto (sem pessoas, sem marca d'água).",
     );
   }
 
@@ -116,11 +120,23 @@ export async function gerarVideo(args: {
   }
 
   if (op.error) {
-    throw new Error(`Omni Flash falhou: ${op.error.message ?? JSON.stringify(op.error)}`);
+    throw new Error(`Veo falhou: ${op.error.message ?? JSON.stringify(op.error)}`);
   }
 
   const uri = op.response?.generatedVideos?.[0]?.video?.uri;
-  if (!uri) throw new Error("Operação terminou sem vídeo. Provável filtro de conteúdo.");
+  if (!uri) {
+    // Terminou sem vídeo = o filtro de conteúdo do Veo (RAI) barrou. A resposta
+    // traz quantos e por quê. É determinístico: mesma foto+prompt barra sempre,
+    // então não retenta — só queimaria ~1min por tentativa pra falhar igual.
+    const resp = op.response as
+      | { raiMediaFilteredCount?: number; raiMediaFilteredReasons?: string[] }
+      | undefined;
+    const motivos = resp?.raiMediaFilteredReasons?.join("; ");
+    throw new ErroSemRetentar(
+      `Veo terminou sem vídeo (filtro de conteúdo). ${motivos ?? "Sem detalhe do motivo."}`,
+      "O gerador de vídeo barrou esta foto no filtro de conteúdo. Tente refazer a foto ou peça outro formato.",
+    );
+  }
 
   return { uri };
 }

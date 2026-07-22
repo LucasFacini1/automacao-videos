@@ -12,7 +12,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 import { readFileSync, existsSync } from "node:fs";
-import { analisarImagemBase, montarPromptVideo, MODELO } from "../src/lib/ia/direcao";
+import { analisarImagemBase, escreverLegendas, montarPromptVideo, MODELO } from "../src/lib/ia/direcao";
 import { FORMATOS } from "../src/lib/formatos";
 
 const BASE = process.argv[2] ?? "img/imagem base 3.png";
@@ -31,12 +31,16 @@ async function main() {
   console.log(`imagem: ${BASE}\n`);
   console.log("analisando...\n");
 
+  const imagemBase = { base64: readFileSync(BASE).toString("base64"), mimeType: "image/png" };
+
   const t0 = Date.now();
-  const a = await analisarImagemBase({
-    imagemBase: { base64: readFileSync(BASE).toString("base64"), mimeType: "image/png" },
+  const a = await analisarImagemBase({ imagemBase, formatos: FORMATOS });
+  const legendas = await escreverLegendas({
+    imagemBase,
+    descricaoRoupa: a.descricao_roupa,
     formatos: FORMATOS,
   });
-  console.log(`(${((Date.now() - t0) / 1000).toFixed(1)}s)\n`);
+  console.log(`(${((Date.now() - t0) / 1000).toFixed(1)}s, 2 passos)\n`);
 
   console.log("=".repeat(72));
   console.log("PEÇA:", a.descricao_roupa);
@@ -44,16 +48,21 @@ async function main() {
 
   for (const f of FORMATOS) {
     const v = a.videos[f.key] as Record<string, unknown> | undefined;
-    if (!v) {
-      console.log(`\n[${f.key}] FALTOU na resposta`);
-      continue;
-    }
+    const l = legendas[f.key];
     console.log(`\n### ${f.nome}`);
-    console.log(`  destaque: ${v.destaque}`);
-    if (v.speech) console.log(`  fala:     "${v.speech}"`);
-    console.log(`  legenda:  ${(v.texto_tela as { t: string; texto: string }[] ?? []).map((l) => `[${l.t}] ${l.texto}`).join(" | ")}`);
-    console.log(`  post:     ${v.descricao}`);
-    console.log(`  hashtags: ${(v.hashtags as string[] ?? []).map((h) => "#" + h).join(" ")}`);
+    if (v) {
+      console.log(`  destaque: ${v.destaque}`);
+      if (v.speech) console.log(`  fala:     "${v.speech}"`);
+    } else {
+      console.log(`  [direção faltou]`);
+    }
+    if (l) {
+      console.log(`  na tela:  ${(l.texto_tela ?? []).map((x) => `[${x.t}] ${x.texto}`).join(" | ")}`);
+      console.log(`  post:     ${l.descricao}`);
+      console.log(`  hashtags: ${(l.hashtags ?? []).map((h) => "#" + h).join(" ")}`);
+    } else {
+      console.log(`  [legenda faltou]`);
+    }
   }
 
   // prompt final de um formato, pra conferir a costura

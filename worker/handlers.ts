@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { FORMATOS, FORMATOS_POR_KEY, type FormatoKey } from "@/lib/formatos";
 import { promptImagemBase } from "@/lib/prompts";
 import { gerarImagemBase, gerarVideo, MODELO_VIDEO } from "@/lib/ia/gemini";
-import { analisarImagemBase, montarPromptVideo } from "@/lib/ia/direcao";
+import { analisarImagemBase, escreverLegendas, montarPromptVideo } from "@/lib/ia/direcao";
 import { baixarInline, subirBase64, subirBuffer } from "@/lib/storage";
 
 export type Job = {
@@ -11,6 +11,35 @@ export type Job = {
   ref_id: string;
   tentativas: number;
 };
+
+/**
+ * Falha terminal → marca a linha que o usuário vê (foto/vídeo) como 'erro'.
+ *
+ * Sem isto, um job que desiste deixa a linha presa em 'gerando' e a tela fica
+ * girando pra sempre — o pior jeito de falhar num produto de "sai e volta".
+ * O guard `.eq(status, 'gerando')` não pisa num cancelamento (que já mudou o
+ * status), então cancelar continua ganhando da falha.
+ */
+export async function marcarFalhaVisivel(
+  db: SupabaseClient,
+  job: Job,
+  mensagem: string,
+): Promise<void> {
+  if (job.tipo === "gerar_imagem") {
+    await db
+      .from("imagem_base")
+      .update({ status: "erro", erro: mensagem })
+      .eq("id", job.ref_id)
+      .eq("status", "gerando");
+  } else if (job.tipo === "gerar_video") {
+    await db
+      .from("video")
+      .update({ status: "erro", erro: mensagem })
+      .eq("id", job.ref_id)
+      .eq("status", "gerando");
+  }
+  // 'analisar' não tem linha própria com status — o erro fica no job.
+}
 
 // --- gerar_imagem: produto + persona -> imagem base (Fase 2) -----------------
 
@@ -78,14 +107,25 @@ export async function analisar(db: SupabaseClient, job: Job): Promise<void> {
   }
 
   const imagem = await baixarInline(db, ib.image_url);
+
+  // Passo 1: direção do vídeo. Passo 2: copy PT-BR ancorada na peça. Separados
+  // de propósito (ver o doc no topo de direcao.ts). A copy usa a descrição da
+  // peça que o passo 1 produziu, então rodam em sequência.
   const analise = await analisarImagemBase({ imagemBase: imagem, formatos: FORMATOS });
+  const legendas = await escreverLegendas({
+    imagemBase: imagem,
+    descricaoRoupa: analise.descricao_roupa,
+    formatos: FORMATOS,
+  });
 
   const direcao: Record<string, unknown> = {};
   const copy: Record<string, unknown> = {};
 
   for (const f of FORMATOS) {
     const v = analise.videos[f.key] as Record<string, unknown> | undefined;
-    if (!v) throw new Error(`Claude não devolveu o formato '${f.key}'.`);
+    if (!v) throw new Error(`Direção não devolveu o formato '${f.key}'.`);
+    const l = legendas[f.key];
+    if (!l) throw new Error(`Legendas não devolveram o formato '${f.key}'.`);
 
     direcao[f.key] = {
       framing: v.framing,
@@ -93,7 +133,7 @@ export async function analisar(db: SupabaseClient, job: Job): Promise<void> {
       destaque: v.destaque,
       ...(f.temFala ? { speech: v.speech } : {}),
     };
-    copy[f.key] = { texto_tela: v.texto_tela, descricao: v.descricao, hashtags: v.hashtags };
+    copy[f.key] = { texto_tela: l.texto_tela, descricao: l.descricao, hashtags: l.hashtags };
   }
 
   const { error: eIns } = await db.from("analise").upsert(

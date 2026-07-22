@@ -13,7 +13,8 @@ import { config } from "dotenv";
 config({ path: ".env.local" }); // fora do Next, dotenv/config só leria .env
 
 import { createClient } from "@supabase/supabase-js";
-import { gerarImagem, analisar, gerarVideoHandler, type Job } from "./handlers";
+import { ErroSemRetentar } from "@/lib/erros";
+import { gerarImagem, analisar, gerarVideoHandler, marcarFalhaVisivel, type Job } from "./handlers";
 
 const INTERVALO_MS = 3000;
 
@@ -54,13 +55,25 @@ async function processarUm(): Promise<boolean> {
     console.log(`[${job.tipo}] ${job.id} ok`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    // tentativas já foi incrementado por pegar_job(); volta pra fila até o teto.
-    const desistiu = job.tentativas >= 3;
+    // ErroSemRetentar (filtro de conteúdo etc.) é determinístico — desiste já,
+    // sem queimar as 3 tentativas no mesmo resultado. Senão, retenta até o teto.
+    // (tentativas já foi incrementado por pegar_job().)
+    const semRetentar = e instanceof ErroSemRetentar;
+    const desistiu = semRetentar || job.tentativas >= 3;
+
     await db
       .from("job")
       .update({ status: desistiu ? "erro" : "pendente", ultimo_erro: msg, locked_at: null })
       .eq("id", job.id);
-    console.error(`[${job.tipo}] ${job.id} ${desistiu ? "ERRO FINAL" : "falhou, vai retentar"}: ${msg}`);
+
+    // Ao desistir de vez, marca a linha que a tela mostra — pra não girar eterno.
+    if (desistiu) {
+      const paraTela = semRetentar && e.mensagemUsuario ? e.mensagemUsuario : msg;
+      await marcarFalhaVisivel(db, job, paraTela);
+    }
+
+    const rotulo = semRetentar ? "ERRO (sem retentar)" : desistiu ? "ERRO FINAL" : "falhou, vai retentar";
+    console.error(`[${job.tipo}] ${job.id} ${rotulo}: ${msg}`);
   }
 
   return true;
