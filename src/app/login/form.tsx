@@ -125,16 +125,17 @@ export function FormLogin() {
         {estado === "enviando" ? "..." : modo === "senha" ? "Entrar" : "Receber link"}
       </Button>
 
-      <button
+      <Button
         type="button"
+        variant="link"
         onClick={() => {
           setModo(modo === "senha" ? "link" : "senha");
           setErro(null);
         }}
-        className="mt-4 w-full text-center text-sm text-muted-foreground underline underline-offset-4"
+        className="mt-4 w-full text-muted-foreground underline"
       >
         {modo === "senha" ? "Entrar sem senha (link no email)" : "Entrar com senha"}
-      </button>
+      </Button>
     </form>
   );
 }
