@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,7 +19,7 @@ const PASSOS = [
   {
     titulo: "Tire print do produto",
     texto:
-      "Achou uma peça boa no TikTok Shop? Tire um print da foto. Pode ser só a roupa, não precisa aparecer rosto nem cortar nada.",
+      "Achou uma peça boa pra vender? Tire um print da foto. Pode ser só a roupa, não precisa aparecer rosto nem cortar nada.",
     dica: "Print mesmo, do jeito que está. Não precisa editar.",
   },
   {
@@ -37,7 +37,7 @@ const PASSOS = [
   {
     titulo: "Baixe e poste",
     texto:
-      "Quando ficar pronto, baixe o vídeo e a legenda já vem escrita pra você copiar. É só colar no TikTok junto com seu link.",
+      "Quando ficar pronto, baixe o vídeo e a legenda já vem escrita pra você copiar. É só postar junto com seu link, onde você vende (TikTok, Shopee...).",
     dica: "Os vídeos ficam guardados. Dá pra baixar de novo depois.",
   },
 ];
@@ -47,6 +47,22 @@ export function Tutorial() {
   const [i, setI] = useState(0);
   const passo = PASSOS[i];
   const ultimo = i === PASSOS.length - 1;
+
+  // Primeira visita de todas: abre sozinho, uma única vez. Ela não precisa saber
+  // que existe um botão "Como funciona" — o passo a passo aparece na cara dela.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem("studio_tutorial_visto")) {
+        localStorage.setItem("studio_tutorial_visto", "1");
+        // Sincronização legítima com um sistema externo (localStorage) uma vez na
+        // montagem — exatamente o caso que a regra abaixo super-restringe.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setAberto(true);
+      }
+    } catch {
+      // localStorage bloqueado (aba privada etc.) — sem auto-abrir, sem quebrar.
+    }
+  }, []);
 
   return (
     <Dialog

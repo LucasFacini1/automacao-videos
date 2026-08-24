@@ -3,102 +3,104 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { criarProduto } from "@/lib/acoes";
+import { criarProduto, criarProdutosEmLote } from "@/lib/acoes";
 import { CUSTO_IMAGEM, formatarBRL } from "@/lib/custos";
 
 /**
- * Envio do produto. Grava de verdade e enfileira a geração da foto — daí em
- * diante quem trabalha é o worker, e a tela do produto acompanha pelo banco.
+ * Envio de produto(s). Aceita uma OU várias fotos de uma vez. Cada foto tem UM
+ * campo: o que está sendo anunciado (o nome). É esse texto que a legenda vende —
+ * se a foto é um look mas você anuncia uma peça, escreva a peça.
+ *
+ * 1 foto → cai direto na tela da foto (aprovar). Várias → volta pra lista da
+ * conta, onde todas aparecem gerando.
  */
+type Item = { id: string; file: File; preview: string; nome: string; ajustes: string };
+
 export function Enviar({ contaId }: { contaId: string }) {
   const router = useRouter();
   const inputFile = useRef<HTMLInputElement>(null);
-  const [arquivo, setArquivo] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [nome, setNome] = useState("");
+  const [itens, setItens] = useState<Item[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, iniciar] = useTransition();
 
   function escolher(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setArquivo(f);
-    setPreview(URL.createObjectURL(f));
-    if (!nome) setNome(f.name.replace(/\.[^.]+$/, "").slice(0, 60));
+    const novos: Item[] = Array.from(e.target.files ?? []).map((f) => ({
+      id: crypto.randomUUID(),
+      file: f,
+      preview: URL.createObjectURL(f),
+      nome: f.name.replace(/\.[^.]+$/, "").slice(0, 60),
+      ajustes: "",
+    }));
+    if (novos.length) setItens((xs) => [...xs, ...novos]);
+    if (inputFile.current) inputFile.current.value = ""; // permite re-escolher o mesmo arquivo
+  }
+
+  function remover(id: string) {
+    setItens((xs) => {
+      const alvo = xs.find((x) => x.id === id);
+      if (alvo) URL.revokeObjectURL(alvo.preview);
+      return xs.filter((x) => x.id !== id);
+    });
+  }
+
+  function atualizar(id: string, campo: "nome" | "ajustes", valor: string) {
+    setItens((xs) => xs.map((x) => (x.id === id ? { ...x, [campo]: valor } : x)));
   }
 
   function enviar() {
-    if (!arquivo) return;
+    if (itens.length === 0) return;
     setErro(null);
     iniciar(async () => {
       try {
-        const fd = new FormData();
-        fd.set("contaId", contaId);
-        fd.set("foto", arquivo);
-        fd.set("nome", nome);
-        const { imagemBaseId } = await criarProduto(fd);
-        router.push(`/conta/${contaId}/produto/${imagemBaseId}`);
+        if (itens.length === 1) {
+          const it = itens[0];
+          const fd = new FormData();
+          fd.set("contaId", contaId);
+          fd.set("foto", it.file);
+          fd.set("nome", it.nome);
+          fd.set("ajustes", it.ajustes);
+          const { imagemBaseId } = await criarProduto(fd);
+          router.push(`/conta/${contaId}/produto/${imagemBaseId}`);
+        } else {
+          const fd = new FormData();
+          fd.set("contaId", contaId);
+          for (const it of itens) {
+            fd.append("foto", it.file);
+            fd.append("nome", it.nome);
+            fd.append("ajustes", it.ajustes);
+          }
+          await criarProdutosEmLote(fd);
+          router.push(`/conta/${contaId}`);
+        }
       } catch (e) {
         setErro(e instanceof Error ? e.message : "Não deu pra enviar.");
       }
     });
   }
 
+  const total = itens.length * CUSTO_IMAGEM;
+  const varios = itens.length > 1;
+
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-10">
       <h1 className="text-2xl font-semibold">Novo produto</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Tire um print da foto do produto no TikTok Shop e envie aqui.
+        Tire um print da foto do produto. Pode enviar várias de uma vez.
       </p>
 
       <input
         ref={inputFile}
         type="file"
         accept="image/*"
+        multiple
         className="hidden"
         onChange={escolher}
       />
 
-      {preview ? (
-        <div className="mt-6 space-y-5">
-          <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
-            <Image
-              src={preview}
-              alt="Foto escolhida"
-              width={480}
-              height={640}
-              className="max-h-[22rem] w-full object-contain"
-              unoptimized
-            />
-            <button
-              onClick={() => {
-                setArquivo(null);
-                setPreview(null);
-                if (inputFile.current) inputFile.current.value = "";
-              }}
-              aria-label="Remover foto"
-              className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-foreground/70 text-background backdrop-blur-sm transition-colors hover:bg-foreground"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="nome">Nome do produto</Label>
-            <Input
-              id="nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Body preto de recorte"
-              className="h-11"
-            />
-          </div>
-        </div>
-      ) : (
+      {itens.length === 0 ? (
         <button
           onClick={() => inputFile.current?.click()}
           className="mt-6 flex aspect-[4/3] w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border bg-card/50 transition-colors hover:border-foreground/25 hover:bg-card"
@@ -106,27 +108,87 @@ export function Enviar({ contaId }: { contaId: string }) {
           <span className="flex size-12 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
             <ImagePlus className="size-6" />
           </span>
-          <span className="font-medium">Escolher foto</span>
+          <span className="font-medium">Escolher fotos</span>
           <span className="max-w-[17rem] text-center text-sm text-muted-foreground">
-            Pode ser só a roupa. Não precisa cortar nem editar nada.
+            Pode ser só a roupa. Uma ou várias — não precisa cortar nem editar.
           </span>
         </button>
+      ) : (
+        <div className="mt-6 space-y-3">
+          {itens.map((it) => (
+            <div key={it.id} className="flex gap-3 rounded-2xl border border-border bg-card p-3">
+              <div className="relative size-24 shrink-0 overflow-hidden rounded-xl bg-secondary">
+                <Image src={it.preview} alt="" fill sizes="96px" className="object-cover" unoptimized />
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    O que você está anunciando?
+                  </label>
+                  <Input
+                    value={it.nome}
+                    onChange={(e) => atualizar(it.id, "nome", e.target.value)}
+                    placeholder="Ex.: saia de couro preta"
+                    className="mt-1 h-9"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Mudar algum detalhe do visual? <span className="font-normal">(opcional)</span>
+                  </label>
+                  <Input
+                    value={it.ajustes}
+                    onChange={(e) => atualizar(it.id, "ajustes", e.target.value)}
+                    placeholder="Ex.: unhas vermelhas, cabelo preso"
+                    maxLength={120}
+                    className="mt-1 h-9"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => remover(it.id)}
+                aria-label="Remover foto"
+                className="flex size-8 shrink-0 items-center justify-center self-start rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          ))}
+
+          <button
+            onClick={() => inputFile.current?.click()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/50 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:text-foreground"
+          >
+            <Plus className="size-4" /> Adicionar mais fotos
+          </button>
+
+          <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+            <strong className="font-medium text-foreground">Anunciando:</strong> se a foto é um look
+            inteiro mas você vende só uma peça, escreva a peça (ex.: “a saia”) — a legenda sai sobre
+            ela.
+            <br />
+            <strong className="font-medium text-foreground">Detalhe do visual:</strong> unha, cabelo
+            ou acessório entram já na foto. Rosto e cenário continuam os da modelo.
+          </p>
+        </div>
       )}
 
       {erro && <p className="mt-4 text-sm text-destructive">{erro}</p>}
 
       <div className="mt-6 flex items-center justify-between gap-3 rounded-xl bg-secondary/50 px-4 py-3">
-        <span className="text-sm text-muted-foreground">Custo desta foto</span>
-        <span className="text-sm font-medium tabular">{formatarBRL(CUSTO_IMAGEM)}</span>
+        <span className="text-sm text-muted-foreground">
+          {itens.length <= 1 ? "Custo desta foto" : `Custo de ${itens.length} fotos`}
+        </span>
+        <span className="text-sm font-medium tabular">{formatarBRL(total)}</span>
       </div>
 
       <Button
         size="lg"
-        disabled={!arquivo || enviando}
+        disabled={itens.length === 0 || enviando}
         onClick={enviar}
         className="mt-4 h-12 w-full text-base"
       >
-        {enviando ? "Enviando..." : "Criar a foto"}
+        {enviando ? "Enviando..." : varios ? `Criar ${itens.length} fotos` : "Criar a foto"}
       </Button>
     </main>
   );

@@ -23,7 +23,7 @@ const serif = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: "Studio",
-  description: "Vídeos de produto para o TikTok Shop, no automático.",
+  description: "Vídeos de produto para TikTok Shop, Shopee e afins, no automático.",
 };
 
 export const viewport: Viewport = {

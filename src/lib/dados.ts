@@ -193,8 +193,16 @@ export type VideoItem = {
   id: string;
   formatoKey: string;
   status: "na_fila" | "gerando" | "pronto" | "erro" | "cancelado";
+  /** Pra tocar no player (inline). */
   videoUrl: string | null;
+  /** Mesma mídia, mas assinada com Content-Disposition: attachment (baixa). */
+  downloadUrl: string | null;
   erro: string | null;
+  /**
+   * Legenda DESTE clipe. Dois vídeos do mesmo produto têm legendas diferentes.
+   * null nos vídeos gerados antes desse recurso — a tela cai na legenda geral.
+   */
+  legenda: Legenda | null;
 };
 
 export type Legenda = {
@@ -230,7 +238,7 @@ export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoPr
       `id, status, image_url, erro,
        produto:produto_id ( nome, image_url, conta_id, conta:conta_id ( user_id ) ),
        analise ( copy ),
-       video ( id, formato_key, status, video_url, erro )`,
+       video ( id, formato_key, status, video_url, erro, legenda )`,
     )
     .eq("id", imagemBaseId)
     .maybeSingle();
@@ -253,6 +261,7 @@ export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoPr
     status: VideoItem["status"];
     video_url: string | null;
     erro: string | null;
+    legenda: Legenda | null;
   }[];
 
   return {
@@ -271,7 +280,11 @@ export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoPr
         formatoKey: v.formato_key,
         status: v.status,
         videoUrl: v.video_url ? await urlAssinada(db, v.video_url, 3600) : null,
+        downloadUrl: v.video_url
+          ? await urlAssinada(db, v.video_url, 3600, `${v.formato_key}.mp4`)
+          : null,
         erro: v.erro,
+        legenda: v.legenda ?? null,
       })),
     ),
   };

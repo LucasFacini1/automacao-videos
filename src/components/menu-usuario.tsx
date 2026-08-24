@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { LayoutGrid, LogOut } from "lucide-react";
+import { BarChart3, LayoutGrid, LogOut } from "lucide-react";
 import { sair } from "@/lib/acoes";
 
-/** Avatar do usuário → menu com "Minhas contas" e "Sair". */
-export function MenuUsuario({ inicial, email }: { inicial: string; email: string }) {
+/** Avatar do usuário → menu com "Minhas contas", "Sair" e, só pro admin, "Custos". */
+export function MenuUsuario({
+  inicial,
+  email,
+  admin = false,
+}: {
+  inicial: string;
+  email: string;
+  admin?: boolean;
+}) {
   const [aberto, setAberto] = useState(false);
   const [saindo, iniciar] = useTransition();
 
@@ -36,6 +44,15 @@ export function MenuUsuario({ inicial, email }: { inicial: string; email: string
             >
               <LayoutGrid className="size-4 text-muted-foreground" /> Minhas contas
             </Link>
+            {admin && (
+              <Link
+                href="/admin"
+                onClick={() => setAberto(false)}
+                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground/90 transition-colors hover:bg-accent"
+              >
+                <BarChart3 className="size-4 text-muted-foreground" /> Custos
+              </Link>
+            )}
             <button
               disabled={saindo}
               onClick={() => iniciar(() => sair())}
