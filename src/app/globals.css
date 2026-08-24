@@ -48,7 +48,7 @@
 
 /*
   Design portado do Open-AI-UGC (MIT) — tema "midnight": near-black, texto
-  claro, primary branco, acento violeta pra foco/marca. Glassmorphism e brilho
+  claro, primary branco, acento jade pra foco/marca. Glassmorphism e brilho
   ambiente. É a pegada escuro/tech que o Lucas escolheu.
 
   Os nomes dos tokens são os do shadcn (nossos componentes já dependem deles),
@@ -72,9 +72,15 @@
   --destructive: #f43f5e;
   --border: #26262c;
   --input: #26262c;
-  --ring: #8b5cf6;
-  --brand: #8b5cf6;
-  --brand-hover: #7c3aed;
+  /* Jade — trocado do violeta genérico de "AI app" por um tom mais editorial/
+     boutique, que não colide com o âmbar (pendente) nem o vermelho
+     (destrutivo) já usados como cor semântica. Contraste calculado, não
+     escolhido no olho: ~4.6:1 sobre branco (texto de botão) e ~4.3:1 sobre o
+     fundo quase-preto (uso como texto direto, ex. badge "Aprovada") — no
+     mesmo patamar de acessibilidade que o violeta anterior tinha. */
+  --ring: #0b8560;
+  --brand: #0b8560;
+  --brand-hover: #097152;
   --brand-foreground: #ffffff;
 
   --glass-bg: rgba(16, 16, 20, 0.66);
@@ -90,7 +96,7 @@
   --sidebar-accent: #1c1c21;
   --sidebar-accent-foreground: #f4f4f5;
   --sidebar-border: #26262c;
-  --sidebar-ring: #8b5cf6;
+  --sidebar-ring: #0b8560;
 }
 
 /* Mesmos valores no .dark, pra qualquer `dark:` utility também funcionar. */
@@ -112,9 +118,9 @@
   --destructive: #f43f5e;
   --border: #26262c;
   --input: #26262c;
-  --ring: #8b5cf6;
-  --brand: #8b5cf6;
-  --brand-hover: #7c3aed;
+  --ring: #0b8560;
+  --brand: #0b8560;
+  --brand-hover: #097152;
   --brand-foreground: #ffffff;
   --glass-bg: rgba(16, 16, 20, 0.66);
   --glass-border: rgba(120, 120, 135, 0.16);
@@ -126,7 +132,7 @@
   --sidebar-accent: #1c1c21;
   --sidebar-accent-foreground: #f4f4f5;
   --sidebar-border: #26262c;
-  --sidebar-ring: #8b5cf6;
+  --sidebar-ring: #0b8560;
 }
 
 @layer base {
@@ -186,14 +192,13 @@
 .scrollbar-subtle::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
 * { scrollbar-color: var(--border) transparent; }
 
-/* Animações (portadas) */
+/* Animações (portadas). fadeUp/gradientX foram removidas em 2026-08 — sem
+   nenhum uso no app (as trocas de estado agora são feitas com spring via
+   motion/react, ver src/lib/motion.ts). pulse-glow segue: usada no logo do
+   login/onboarding. */
 @keyframes pulseGlow { 0%,100%{opacity:.55;transform:scale(1);} 50%{opacity:1;transform:scale(1.02);} }
 .animate-pulse-glow { animation: pulseGlow 2.4s infinite ease-in-out; }
-@keyframes gradientX { 0%,100%{background-position:0% 50%;} 50%{background-position:100% 50%;} }
-.animate-gradient-x { background-size: 200% 200%; animation: gradientX 6s ease infinite; }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.animate-fade-up { animation: fadeUp .5s both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-pulse-glow, .animate-gradient-x, .animate-fade-up { animation: none; }
+  .animate-pulse-glow { animation: none; }
 }

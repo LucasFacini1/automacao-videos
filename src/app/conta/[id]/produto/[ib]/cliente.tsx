@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { AnimatePresence, motion } from "motion/react";
 import { Check, Copy, Download, Loader2, Plus, RefreshCw, Trash2, TriangleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FORMATOS, FORMATOS_POR_KEY } from "@/lib/formatos";
 import { CUSTO_VIDEO, formatarBRL } from "@/lib/custos";
 import { textoLegenda, LEGENDA_MAX } from "@/lib/legenda";
+import { itemLista, barraSuspensa, trocaDeTela } from "@/lib/motion";
 import {
   aprovarImagem,
   pedirVideos,
@@ -43,6 +45,22 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
   const esperandoAnalise = estado.status === "aprovada" && estado.videos.length > 0 && !estado.temAnalise;
 
   usePolling(esperandoFoto || videosPendentes || esperandoAnalise);
+
+  // Identifica a "tela" atual pro cross-fade do Secao (apple-design §7:
+  // trocar de tela é um corte, não devia ser um corte SECO). Tem que espelhar
+  // exatamente a mesma ordem de condições dos `if` abaixo — é só o rótulo da
+  // tela, não decide qual branch roda.
+  const viewKey = esperandoFoto
+    ? "gerando"
+    : estado.status === "cancelada" || estado.status === "rejeitada"
+      ? "cancelada"
+      : estado.status === "erro"
+        ? "erro"
+        : estado.status === "pronta"
+          ? "aprovacao"
+          : estado.videos.length === 0
+            ? "escolher-formatos"
+            : "biblioteca";
 
   /** Roda uma ação e mostra toast de erro se falhar (aviso padronizado). */
   function agir(fn: () => Promise<unknown>, aoOk?: () => void) {
@@ -97,7 +115,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
   // ---------------------------------------------------------------- gerando
   if (esperandoFoto) {
     return (
-      <Secao titulo="Criando a foto" sub="Leva menos de um minuto. Pode deixar essa tela aberta.">
+      <Secao viewKey={viewKey} titulo="Criando a foto" sub="Leva menos de um minuto. Pode deixar essa tela aberta.">
         <div className="glass-card flex flex-col items-center gap-4 px-6 py-14">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Vestindo a peça na modelo...</p>
@@ -119,7 +137,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
   // imagem cancelada — oferece refazer
   if (estado.status === "cancelada" || estado.status === "rejeitada") {
     return (
-      <Secao titulo="Criação cancelada" sub="Você cancelou a criação desta foto.">
+      <Secao viewKey={viewKey} titulo="Criação cancelada" sub="Você cancelou a criação desta foto.">
         <div className="glass-card flex flex-col items-center gap-4 px-6 py-14">
           <p className="text-sm text-muted-foreground">Quer tentar de novo?</p>
           <Button disabled={agindo} onClick={() => refazer()}>
@@ -133,7 +151,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
   // ------------------------------------------------------------------- erro
   if (estado.status === "erro") {
     return (
-      <Secao titulo="Não deu certo" sub="A foto não foi criada.">
+      <Secao viewKey={viewKey} titulo="Não deu certo" sub="A foto não foi criada.">
         <div className="rounded-2xl border border-destructive/25 bg-destructive/[0.03] p-5">
           <p className="flex items-center gap-2 text-sm font-medium text-destructive">
             <TriangleAlert className="size-4" /> Erro ao criar a foto
@@ -152,7 +170,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
   // -------------------------------------------------------------- aprovação
   if (estado.status === "pronta") {
     return (
-      <Secao titulo="A peça ficou igual?" sub="Compare com o anúncio antes de virar vídeo.">
+      <Secao viewKey={viewKey} titulo="A peça ficou igual?" sub="Compare com o anúncio antes de virar vídeo.">
         <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -212,7 +230,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
   // ------------------------------------------- aprovada, ainda sem vídeos
   if (estado.videos.length === 0) {
     return (
-      <Secao titulo="Que vídeos você quer?" sub="Marque os estilos e quantas variações de cada — sai diferente cada vez.">
+      <Secao viewKey={viewKey} titulo="Que vídeos você quer?" sub="Marque os estilos e quantas variações de cada — sai diferente cada vez.">
         <EscolherFormatos imagemBaseId={estado.imagemBaseId} />
       </Secao>
     );
@@ -226,6 +244,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
 
   return (
     <Secao
+      viewKey={viewKey}
       titulo={videosPendentes ? "Criando seus vídeos" : "Vídeos prontos"}
       sub={
         videosPendentes
@@ -233,40 +252,57 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
           : "Baixe e poste com seu link de afiliado."
       }
     >
-      {/* Barra de seleção: aparece só quando há vídeo(s) marcado(s). */}
-      {nSel > 0 && (
-        <div className="mb-4 flex items-center justify-between rounded-xl border border-border bg-secondary/50 px-4 py-2.5">
-          <span className="text-sm font-medium">
-            {nSel} {nSel === 1 ? "selecionado" : "selecionados"}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={agindo}
-              onClick={() => setSelecionados(new Set())}
-            >
-              Limpar
-            </Button>
-            <Button
-              size="sm"
-              disabled={agindo}
-              onClick={excluirSelecionados}
-              className="gap-1.5 bg-destructive text-white hover:bg-destructive/90"
-            >
-              <Trash2 className="size-4" /> Excluir
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Barra de seleção: aparece só quando há vídeo(s) marcado(s). Desliza de
+          cima em vez de aparecer/sumir seco — apple-design §7 (spatial consistency). */}
+      <AnimatePresence initial={false}>
+        {nSel > 0 && (
+          <motion.div
+            variants={barraSuspensa}
+            initial="entra"
+            animate="presente"
+            exit="sai"
+            className="mb-4 flex items-center justify-between overflow-hidden rounded-xl border border-border bg-secondary/50 px-4 py-2.5"
+          >
+            <span className="text-sm font-medium">
+              {nSel} {nSel === 1 ? "selecionado" : "selecionados"}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={agindo}
+                onClick={() => setSelecionados(new Set())}
+              >
+                Limpar
+              </Button>
+              <Button
+                size="sm"
+                disabled={agindo}
+                onClick={excluirSelecionados}
+                className="gap-1.5 bg-destructive text-white hover:bg-destructive/90"
+              >
+                <Trash2 className="size-4" /> Excluir
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {estado.videos.map((v) => {
+        {/* `layout` faz os cards vizinhos deslizarem pro lugar quando um sai
+            (exclusão) em vez de saltar direto pro novo grid — apple-design §7. */}
+        <AnimatePresence initial={false}>
+          {estado.videos.map((v) => {
           const f = FORMATOS_POR_KEY[v.formatoKey as keyof typeof FORMATOS_POR_KEY];
           const sel = selecionados.has(v.id);
           return (
-            <li
+            <motion.li
               key={v.id}
+              layout
+              variants={itemLista}
+              initial="entra"
+              animate="presente"
+              exit="sai"
               className={`overflow-hidden rounded-2xl border bg-card transition-colors ${
                 sel ? "border-primary ring-1 ring-primary" : "border-border"
               }`}
@@ -351,9 +387,10 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
               {/* Legenda DESTE clipe — cada vídeo tem a sua, pra dar pra postar
                   os dois sem repetir o texto. */}
               {v.status === "pronto" && v.legenda && <LegendaDoClipe copy={v.legenda} />}
-            </li>
+            </motion.li>
           );
-        })}
+          })}
+        </AnimatePresence>
       </ul>
 
       {/* Só cai na legenda geral se nenhum clipe tiver a própria (vídeos feitos
@@ -361,36 +398,52 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
       {prontos.length > 0 && !temLegendaPropria && estado.copy && <Legenda copy={estado.copy} />}
 
       {/* Fazer mais vídeos da MESMA peça — sem recriar o produto. */}
-      {escolhendo ? (
-        <div className="mt-8 rounded-2xl border border-border bg-card p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-medium">Fazer mais vídeos desta peça</h2>
-            <button
-              onClick={() => setEscolhendo(false)}
-              aria-label="Fechar"
-              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-          <EscolherFormatos imagemBaseId={estado.imagemBaseId} aoPedir={() => setEscolhendo(false)} />
-        </div>
-      ) : (
-        <div className="mt-8 flex flex-col gap-2 sm:flex-row">
-          <Button size="lg" className="h-12 gap-1.5 sm:flex-1" onClick={() => setEscolhendo(true)}>
-            <Plus className="size-4" /> Fazer mais vídeos
-          </Button>
-          <Button
-            variant="outline"
-            size="lg"
-            render={<Link href={`/conta/${estado.contaId}`} />}
-            nativeButton={false}
-            className="h-12 sm:w-auto"
+      <AnimatePresence mode="wait" initial={false}>
+        {escolhendo ? (
+          <motion.div
+            key="painel"
+            variants={trocaDeTela}
+            initial="entra"
+            animate="presente"
+            exit="sai"
+            className="mt-8 rounded-2xl border border-border bg-card p-5"
           >
-            Voltar aos produtos
-          </Button>
-        </div>
-      )}
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-medium">Fazer mais vídeos desta peça</h2>
+              <button
+                onClick={() => setEscolhendo(false)}
+                aria-label="Fechar"
+                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <EscolherFormatos imagemBaseId={estado.imagemBaseId} aoPedir={() => setEscolhendo(false)} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="botoes"
+            variants={trocaDeTela}
+            initial="entra"
+            animate="presente"
+            exit="sai"
+            className="mt-8 flex flex-col gap-2 sm:flex-row"
+          >
+            <Button size="lg" className="h-12 gap-1.5 sm:flex-1" onClick={() => setEscolhendo(true)}>
+              <Plus className="size-4" /> Fazer mais vídeos
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              render={<Link href={`/conta/${estado.contaId}`} />}
+              nativeButton={false}
+              className="h-12 sm:w-auto"
+            >
+              Voltar aos produtos
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Secao>
   );
 }
@@ -507,20 +560,38 @@ function EscolherFormatos({
   );
 }
 
+/**
+ * Casca de toda tela do fluxo do produto. `viewKey` identifica QUAL tela é
+ * (gerando/aprovação/biblioteca/...) — quando ela muda, a tela inteira faz um
+ * cross-fade em vez de cortar seco (apple-design §7). Título e legenda entram
+ * no mesmo bloco animado: a troca de tela é UMA coisa só, não título saltando
+ * e conteúdo suavizando em momentos diferentes.
+ *
+ * Dentro da MESMA tela (viewKey igual, só o texto do título variando — ex.:
+ * "Criando seus vídeos" → "Vídeos prontos") não deve remontar nada: seria
+ * refazer a animação de entrada dos cards de vídeo à toa. Por isso a key é
+ * `viewKey`, nunca `titulo`.
+ */
 function Secao({
+  viewKey,
   titulo,
   sub,
   children,
 }: {
+  viewKey: string;
   titulo: string;
   sub: string;
   children: React.ReactNode;
 }) {
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
-      <h1 className="text-2xl font-semibold">{titulo}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{sub}</p>
-      <div className="mt-6">{children}</div>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={viewKey} variants={trocaDeTela} initial="entra" animate="presente" exit="sai">
+          <h1 className="text-2xl font-semibold">{titulo}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{sub}</p>
+          <div className="mt-6">{children}</div>
+        </motion.div>
+      </AnimatePresence>
     </main>
   );
 }

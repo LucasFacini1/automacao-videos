@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { AnimatePresence, motion } from "motion/react";
 import { Check, Clapperboard, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { excluirProdutos } from "@/lib/acoes";
 import type { ProdutoLista, StatusImagem } from "@/lib/dados";
+import { itemLista, barraSuspensa } from "@/lib/motion";
 
 const ROTULO: Record<StatusImagem, string> = {
   gerando: "Criando a foto",
@@ -67,32 +69,41 @@ export function ListaProdutos({ contaId, produtos }: { contaId: string; produtos
 
   return (
     <>
-      {nSel > 0 && (
-        <div className="mb-4 flex items-center justify-between rounded-xl border border-border bg-secondary/50 px-4 py-2.5">
-          <span className="text-sm font-medium">
-            {nSel} {nSel === 1 ? "selecionado" : "selecionados"}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <Button variant="ghost" size="sm" disabled={agindo} onClick={() => setSelecionados(new Set())}>
-              Limpar
-            </Button>
-            <Button
-              size="sm"
-              disabled={agindo}
-              onClick={excluir}
-              className="gap-1.5 bg-destructive text-white hover:bg-destructive/90"
-            >
-              <Trash2 className="size-4" /> Excluir
-            </Button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {nSel > 0 && (
+          <motion.div
+            variants={barraSuspensa}
+            initial="entra"
+            animate="presente"
+            exit="sai"
+            className="mb-4 flex items-center justify-between overflow-hidden rounded-xl border border-border bg-secondary/50 px-4 py-2.5"
+          >
+            <span className="text-sm font-medium">
+              {nSel} {nSel === 1 ? "selecionado" : "selecionados"}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button variant="ghost" size="sm" disabled={agindo} onClick={() => setSelecionados(new Set())}>
+                Limpar
+              </Button>
+              <Button
+                size="sm"
+                disabled={agindo}
+                onClick={excluir}
+                className="gap-1.5 bg-destructive text-white hover:bg-destructive/90"
+              >
+                <Trash2 className="size-4" /> Excluir
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {produtos.map((p) => {
+        <AnimatePresence initial={false}>
+          {produtos.map((p) => {
           const sel = selecionados.has(p.id);
           return (
-            <li key={p.id}>
+            <motion.li key={p.id} layout variants={itemLista} initial="entra" animate="presente" exit="sai">
               <Link
                 href={p.imagemBaseId ? `/conta/${contaId}/produto/${p.imagemBaseId}` : `/conta/${contaId}`}
                 className={`group flex h-full flex-col overflow-hidden rounded-2xl border bg-card transition-all hover:shadow-[0_2px_16px_-4px_rgb(0_0_0/0.08)] ${
@@ -152,9 +163,10 @@ export function ListaProdutos({ contaId, produtos }: { contaId: string; produtos
                   )}
                 </div>
               </Link>
-            </li>
+            </motion.li>
           );
-        })}
+          })}
+        </AnimatePresence>
       </ul>
     </>
   );
