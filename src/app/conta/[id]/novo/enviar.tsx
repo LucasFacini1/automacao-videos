@@ -19,9 +19,12 @@ import { CUSTO_IMAGEM, formatarBRL } from "@/lib/custos";
  */
 type Item = { id: string; file: File; preview: string; nome: string; ajustes: string };
 
+type Tipo = "modelo" | "avulso";
+
 export function Enviar({ contaId }: { contaId: string }) {
   const router = useRouter();
   const inputFile = useRef<HTMLInputElement>(null);
+  const [tipo, setTipo] = useState<Tipo>("modelo");
   const [itens, setItens] = useState<Item[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, iniciar] = useTransition();
@@ -59,6 +62,7 @@ export function Enviar({ contaId }: { contaId: string }) {
           const it = itens[0];
           const fd = new FormData();
           fd.set("contaId", contaId);
+          fd.set("tipo", tipo);
           fd.set("foto", it.file);
           fd.set("nome", it.nome);
           fd.set("ajustes", it.ajustes);
@@ -67,6 +71,7 @@ export function Enviar({ contaId }: { contaId: string }) {
         } else {
           const fd = new FormData();
           fd.set("contaId", contaId);
+          fd.set("tipo", tipo);
           for (const it of itens) {
             fd.append("foto", it.file);
             fd.append("nome", it.nome);
@@ -81,7 +86,7 @@ export function Enviar({ contaId }: { contaId: string }) {
     });
   }
 
-  const total = itens.length * CUSTO_IMAGEM;
+  const total = tipo === "avulso" ? 0 : itens.length * CUSTO_IMAGEM;
   const varios = itens.length > 1;
 
   return (
@@ -89,6 +94,33 @@ export function Enviar({ contaId }: { contaId: string }) {
       <h1 className="text-2xl font-semibold">Novo produto</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Tire um print da foto do produto. Pode enviar várias de uma vez.
+      </p>
+
+      {/* Escolhe ANTES de tirar a foto — muda o que ela precisa fotografar. */}
+      <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-border bg-secondary/40 p-1">
+        <button
+          type="button"
+          onClick={() => setTipo("modelo")}
+          className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+            tipo === "modelo" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+          }`}
+        >
+          Com a modelo
+        </button>
+        <button
+          type="button"
+          onClick={() => setTipo("avulso")}
+          className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+            tipo === "avulso" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+          }`}
+        >
+          Produto avulso
+        </button>
+      </div>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+        {tipo === "modelo"
+          ? "A modelo veste a peça no vídeo. Envie a foto do produto (o anúncio serve)."
+          : "Só a peça, sem ninguém vestindo — no cabide, no manequim ou no chão mesmo. Sem custo de foto: é a sua própria imagem que vira vídeo."}
       </p>
 
       <input
@@ -110,7 +142,9 @@ export function Enviar({ contaId }: { contaId: string }) {
           </span>
           <span className="font-medium">Escolher fotos</span>
           <span className="max-w-[17rem] text-center text-sm text-muted-foreground">
-            Pode ser só a roupa. Uma ou várias — não precisa cortar nem editar.
+            {tipo === "modelo"
+              ? "Pode ser só a roupa. Uma ou várias — não precisa cortar nem editar."
+              : "A peça sozinha, sem modelo. Uma ou várias — não precisa cortar nem editar."}
           </span>
         </button>
       ) : (
@@ -132,18 +166,20 @@ export function Enviar({ contaId }: { contaId: string }) {
                     className="mt-1 h-9"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">
-                    Mudar algum detalhe do visual? <span className="font-normal">(opcional)</span>
-                  </label>
-                  <Input
-                    value={it.ajustes}
-                    onChange={(e) => atualizar(it.id, "ajustes", e.target.value)}
-                    placeholder="Ex.: unhas vermelhas, cabelo preso"
-                    maxLength={120}
-                    className="mt-1 h-9"
-                  />
-                </div>
+                {tipo === "modelo" && (
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Mudar algum detalhe do visual? <span className="font-normal">(opcional)</span>
+                    </label>
+                    <Input
+                      value={it.ajustes}
+                      onChange={(e) => atualizar(it.id, "ajustes", e.target.value)}
+                      placeholder="Ex.: unhas vermelhas, cabelo preso"
+                      maxLength={120}
+                      className="mt-1 h-9"
+                    />
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => remover(it.id)}
@@ -166,9 +202,13 @@ export function Enviar({ contaId }: { contaId: string }) {
             <strong className="font-medium text-foreground">Anunciando:</strong> se a foto é um look
             inteiro mas você vende só uma peça, escreva a peça (ex.: “a saia”) — a legenda sai sobre
             ela.
-            <br />
-            <strong className="font-medium text-foreground">Detalhe do visual:</strong> unha, cabelo
-            ou acessório entram já na foto. Rosto e cenário continuam os da modelo.
+            {tipo === "modelo" && (
+              <>
+                <br />
+                <strong className="font-medium text-foreground">Detalhe do visual:</strong> unha,
+                cabelo ou acessório entram já na foto. Rosto e cenário continuam os da modelo.
+              </>
+            )}
           </p>
         </div>
       )}
@@ -177,9 +217,15 @@ export function Enviar({ contaId }: { contaId: string }) {
 
       <div className="mt-6 flex items-center justify-between gap-3 rounded-xl bg-secondary/50 px-4 py-3">
         <span className="text-sm text-muted-foreground">
-          {itens.length <= 1 ? "Custo desta foto" : `Custo de ${itens.length} fotos`}
+          {tipo === "avulso"
+            ? "Custo desta foto"
+            : itens.length <= 1
+              ? "Custo desta foto"
+              : `Custo de ${itens.length} fotos`}
         </span>
-        <span className="text-sm font-medium tabular">{formatarBRL(total)}</span>
+        <span className="text-sm font-medium tabular">
+          {tipo === "avulso" ? "Sem custo" : formatarBRL(total)}
+        </span>
       </div>
 
       <Button

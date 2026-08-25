@@ -9,6 +9,7 @@ import { BUCKET } from "@/lib/storage";
 import { FORMATOS_POR_KEY, type FormatoKey } from "@/lib/formatos";
 import { CUSTO_IMAGEM, CUSTO_VIDEO } from "@/lib/custos";
 import { ehAdmin } from "@/lib/admin";
+import type { TipoProduto } from "@/lib/ia/direcao";
 
 // Teto de gasto mensal, em R$. O valor de cada pessoa fica no banco
 // (limite_usuario, editável no /admin); TETO_MENSAL_BRL no env é só o padrão pra
@@ -267,11 +268,18 @@ export async function excluirProdutos(produtoIds: string[]) {
 async function criarUmProduto(
   db: ReturnType<typeof createAdminClient>,
   contaId: string,
-  item: { foto: File; nome: string; ajustes?: string },
+  item: { foto: File; nome: string; ajustes?: string; tipo?: TipoProduto },
 ): Promise<string> {
   const { data: produto, error: eProd } = await db
     .from("produto")
-    .insert({ conta_id: contaId, nome: item.nome, image_url: "", ajustes: item.ajustes || null })
+    .insert({
+      conta_id: contaId,
+      nome: item.nome,
+      image_url: "",
+      tipo: item.tipo === "avulso" ? "avulso" : "modelo",
+      // ajustes é só pra tipo='modelo' — avulso não tem persona pra ajustar.
+      ajustes: item.tipo === "avulso" ? null : item.ajustes || null,
+    })
     .select("id")
     .single();
   if (eProd) throw new Error(`Não deu pra salvar o produto: ${eProd.message}`);
@@ -301,7 +309,10 @@ async function criarUmProduto(
 export async function criarProduto(form: FormData) {
   const contaId = String(form.get("contaId") ?? "");
   const { db, user } = await exigirDonoDaConta(contaId);
-  await exigirDentroDoTeto(db, user.id, CUSTO_IMAGEM);
+
+  const tipo: TipoProduto = form.get("tipo") === "avulso" ? "avulso" : "modelo";
+  // Avulso não compõe com a persona — nada é gerado nessa etapa, sem custo.
+  await exigirDentroDoTeto(db, user.id, tipo === "avulso" ? 0 : CUSTO_IMAGEM);
 
   const foto = form.get("foto") as File | null;
   if (!foto || foto.size === 0) throw new Error("Envie a foto do produto.");
@@ -309,7 +320,7 @@ export async function criarProduto(form: FormData) {
   const nome = String(form.get("nome") ?? "").trim() || "Produto sem nome";
   const ajustes = String(form.get("ajustes") ?? "").trim().slice(0, 120) || undefined;
 
-  const imagemBaseId = await criarUmProduto(db, contaId, { foto, nome, ajustes });
+  const imagemBaseId = await criarUmProduto(db, contaId, { foto, nome, ajustes, tipo });
 
   revalidatePath(`/conta/${contaId}`);
   return { imagemBaseId };
@@ -324,12 +335,16 @@ export async function criarProdutosEmLote(form: FormData) {
   const contaId = String(form.get("contaId") ?? "");
   const { db, user } = await exigirDonoDaConta(contaId);
 
+  // Um tipo só pra todo o lote — misturar modelo/avulso no mesmo upload não
+  // vale a complexidade de tela; quem precisar dos dois faz duas levas.
+  const tipo: TipoProduto = form.get("tipo") === "avulso" ? "avulso" : "modelo";
+
   // getAll preserva a ordem de inserção — foto[i], nome[i] e ajustes[i] alinham.
   const fotos = form.getAll("foto");
   const nomes = form.getAll("nome").map((n) => String(n));
   const ajustesArr = form.getAll("ajustes").map((a) => String(a));
 
-  const itens: { foto: File; nome: string; ajustes?: string }[] = [];
+  const itens: { foto: File; nome: string; ajustes?: string; tipo: TipoProduto }[] = [];
   for (let i = 0; i < fotos.length; i++) {
     const f = fotos[i];
     if (!(f instanceof File) || f.size === 0) continue;
@@ -337,11 +352,12 @@ export async function criarProdutosEmLote(form: FormData) {
       foto: f,
       nome: (nomes[i] ?? "").trim() || `Produto ${i + 1}`,
       ajustes: (ajustesArr[i] ?? "").trim().slice(0, 120) || undefined,
+      tipo,
     });
   }
   if (itens.length === 0) throw new Error("Envie ao menos uma foto.");
 
-  await exigirDentroDoTeto(db, user.id, itens.length * CUSTO_IMAGEM);
+  await exigirDentroDoTeto(db, user.id, tipo === "avulso" ? 0 : itens.length * CUSTO_IMAGEM);
 
   const imagemBaseIds: string[] = [];
   for (const it of itens) imagemBaseIds.push(await criarUmProduto(db, contaId, it));

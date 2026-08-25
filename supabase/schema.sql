@@ -42,22 +42,29 @@ create table if not exists persona (
 -- O `nome` é o que está sendo anunciado — quando a foto é um look mas só uma
 -- peça está à venda, o nome é a peça (ex.: "saia de couro"), e a legenda sai
 -- sobre ela. Ver direcao.ts. (Vazio/genérico = a legenda ancora na foto.)
+-- tipo: 'modelo' (padrão) = a persona veste/segura o produto, via composição
+-- com Nano Banana Pro (fluxo original). 'avulso' = só a peça, sem modelo — a
+-- imagem_base é a própria foto enviada, sem gerar nada (sem custo de imagem).
+-- Ver worker/handlers.ts (gerarImagem) e lib/formatos.ts (FORMATOS_AVULSO).
 create table if not exists produto (
   id             uuid primary key default gen_random_uuid(),
   conta_id       uuid not null references conta(id) on delete cascade,
   nome           text not null,
   image_url      text not null,
+  tipo           text not null default 'modelo',
   -- ajustes: mudança de visual pedida pra ESTE produto (unhas/cabelo/acessório).
   -- Entra na geração da imagem base (promptImagemBase) — é onde funciona, já que
-  -- o vídeo só anima a foto pronta. Vazio = mantém como na referência.
+  -- o vídeo só anima a foto pronta. Vazio = mantém como na referência. Só faz
+  -- sentido pra tipo='modelo' (avulso não tem persona pra ajustar).
   ajustes        text,
   link_afiliado  text,
   preco          numeric(10,2),
   created_at     timestamptz not null default now()
 );
 create index if not exists produto_conta_id_idx on produto(conta_id);
--- idempotente: garante a coluna mesmo se a tabela nasceu numa versão antiga
+-- idempotente: garante as colunas mesmo se a tabela nasceu numa versão antiga
 alter table produto add column if not exists ajustes text;
+alter table produto add column if not exists tipo text not null default 'modelo';
 
 create table if not exists imagem_base (
   id            uuid primary key default gen_random_uuid(),
@@ -145,6 +152,10 @@ create index if not exists job_fila_idx on job(status, created_at) where status 
 -- ---------------------------------------------------------------- constraints
 -- Via drop+add: idempotente, e garante que os status novos (cancelada/cancelado)
 -- existam mesmo se a tabela foi criada numa versão antiga do schema.
+
+alter table produto drop constraint if exists produto_tipo_check;
+alter table produto add  constraint produto_tipo_check
+  check (tipo in ('modelo','avulso'));
 
 alter table imagem_base drop constraint if exists imagem_base_status_check;
 alter table imagem_base add  constraint imagem_base_status_check

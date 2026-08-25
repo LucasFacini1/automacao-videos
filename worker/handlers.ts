@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { FORMATOS, FORMATOS_POR_KEY, type FormatoKey } from "@/lib/formatos";
+import { FORMATOS, FORMATOS_AVULSO, FORMATOS_POR_KEY, type FormatoKey } from "@/lib/formatos";
 import { promptImagemBase } from "@/lib/prompts";
 import { gerarImagemBase, gerarVideo, MODELO_VIDEO } from "@/lib/ia/gemini";
 import {
@@ -8,6 +8,7 @@ import {
   montarPromptVideo,
   montarPromptMinimo,
   traduzirEstilo,
+  type TipoProduto,
 } from "@/lib/ia/direcao";
 import { baixarInline, subirBase64, subirBuffer } from "@/lib/storage";
 import { CUSTO_IMAGEM, CUSTO_VIDEO } from "@/lib/custos";
@@ -84,7 +85,7 @@ async function registrarCusto(
 export async function gerarImagem(db: SupabaseClient, job: Job): Promise<void> {
   const { data: ib, error } = await db
     .from("imagem_base")
-    .select("id, produto:produto_id(id, image_url, ajustes, conta_id, conta:conta_id(user_id))")
+    .select("id, produto:produto_id(id, image_url, tipo, ajustes, conta_id, conta:conta_id(user_id))")
     .eq("id", job.ref_id)
     .single();
 
@@ -93,10 +94,26 @@ export async function gerarImagem(db: SupabaseClient, job: Job): Promise<void> {
   const produto = ib.produto as unknown as {
     id: string;
     image_url: string;
+    tipo: TipoProduto;
     ajustes: string | null;
     conta_id: string;
     conta: { user_id: string };
   };
+
+  // Avulso: sem persona, sem composição — a imagem_base É a própria foto do
+  // produto. Sem chamada de IA, sem custo (nada foi gerado de fato).
+  if (produto.tipo === "avulso") {
+    const { data: atual } = await db.from("imagem_base").select("status").eq("id", ib.id).single();
+    if (atual?.status !== "gerando") {
+      console.log(`  imagem ${ib.id} cancelada durante a geração — descartando`);
+      return;
+    }
+    await db
+      .from("imagem_base")
+      .update({ image_url: produto.image_url, status: "pronta", prompt_usado: null, erro: null })
+      .eq("id", ib.id);
+    return;
+  }
 
   const { data: persona, error: ePersona } = await db
     .from("persona")
@@ -152,7 +169,7 @@ export async function gerarImagem(db: SupabaseClient, job: Job): Promise<void> {
 export async function analisar(db: SupabaseClient, job: Job): Promise<void> {
   const { data: ib, error } = await db
     .from("imagem_base")
-    .select("id, image_url, status, produto:produto_id(nome)")
+    .select("id, image_url, status, produto:produto_id(nome, tipo)")
     .eq("id", job.ref_id)
     .single();
 
@@ -164,25 +181,31 @@ export async function analisar(db: SupabaseClient, job: Job): Promise<void> {
     throw new Error(`imagem_base ${ib.id} está '${ib.status}', esperado 'aprovada'.`);
   }
 
+  const produtoInfo = ib.produto as unknown as { nome: string; tipo: TipoProduto } | null;
   // O nome do produto é o que está anunciado — direciona legenda e foco (ver
   // direcao.ts). Nome genérico/filename a IA ignora, ancorando na foto.
-  const produtoAnunciado = (ib.produto as unknown as { nome: string } | null)?.nome || undefined;
+  const produtoAnunciado = produtoInfo?.nome || undefined;
+  // avulso: peça sozinha, sem modelo — troca o conjunto de formatos E o prompt
+  // de direção/legenda inteiro (ver SYSTEM_AVULSO em direcao.ts).
+  const tipo: TipoProduto = produtoInfo?.tipo ?? "modelo";
+  const formatos = tipo === "avulso" ? FORMATOS_AVULSO : FORMATOS;
 
   const imagem = await baixarInline(db, ib.image_url);
 
   // Passo 1: direção do vídeo. Passo 2: UMA legenda PT-BR ancorada na peça.
   // Separados de propósito (ver o doc no topo de direcao.ts). A legenda usa a
   // descrição da peça que o passo 1 produziu, então rodam em sequência.
-  const analise = await analisarImagemBase({ imagemBase: imagem, formatos: FORMATOS, produtoAnunciado });
+  const analise = await analisarImagemBase({ imagemBase: imagem, formatos, produtoAnunciado, tipo });
   const legenda = await escreverLegenda({
     imagemBase: imagem,
     descricaoRoupa: analise.descricao_roupa,
     produtoAnunciado,
+    tipo,
   });
 
   const direcao: Record<string, unknown> = {};
 
-  for (const f of FORMATOS) {
+  for (const f of formatos) {
     const v = analise.videos[f.key] as Record<string, unknown> | undefined;
     if (!v) throw new Error(`Direção não devolveu o formato '${f.key}'.`);
 
@@ -218,7 +241,7 @@ export async function gerarVideoHandler(db: SupabaseClient, job: Job): Promise<v
 
   const { data: ib, error: eIb } = await db
     .from("imagem_base")
-    .select("id, image_url, produto:produto_id(id, nome, conta_id, conta:conta_id(user_id))")
+    .select("id, image_url, produto:produto_id(id, nome, tipo, conta_id, conta:conta_id(user_id))")
     .eq("id", v.imagem_base_id)
     .single();
   if (eIb || !ib?.image_url) throw new Error(`imagem_base de ${v.id} indisponível: ${eIb?.message}`);
@@ -226,6 +249,7 @@ export async function gerarVideoHandler(db: SupabaseClient, job: Job): Promise<v
   const produtoV = ib.produto as unknown as {
     id: string;
     nome: string;
+    tipo: TipoProduto;
     conta_id: string;
     conta: { user_id: string };
   };
@@ -241,13 +265,17 @@ export async function gerarVideoHandler(db: SupabaseClient, job: Job): Promise<v
   const direcao = (analise.direcao as Record<string, never>)[formato.key];
   if (!direcao) throw new Error(`Análise não tem direção para '${formato.key}'.`);
 
-  const REFERENCIA = "the woman in the reference image, in her usual closet";
+  const REFERENCIA =
+    produtoV.tipo === "avulso"
+      ? "the exact garment in the reference image"
+      : "the woman in the reference image, in her usual closet";
 
   const prompt = montarPromptVideo({
     formato,
     descricaoRoupa: analise.descricao_roupa,
     direcao,
     referencia: REFERENCIA,
+    tipo: produtoV.tipo,
   });
 
   // Reserva sem descrição de peça/corpo: se o filtro barrar o detalhado, o
@@ -256,6 +284,7 @@ export async function gerarVideoHandler(db: SupabaseClient, job: Job): Promise<v
     formato,
     referencia: REFERENCIA,
     speech: (direcao as { speech?: string }).speech,
+    tipo: produtoV.tipo,
   });
 
   await db.from("video").update({ status: "gerando", prompt_final: prompt }).eq("id", v.id);
@@ -314,6 +343,7 @@ export async function gerarVideoHandler(db: SupabaseClient, job: Job): Promise<v
       descricaoRoupa: analise.descricao_roupa,
       produtoAnunciado: produtoV.nome,
       anguloDoVideo: `${formato.nome}${d.destaque ? ` — ${d.destaque}` : ""}`,
+      tipo: produtoV.tipo,
     });
     await db.from("video").update({ legenda: legendaClipe }).eq("id", v.id);
   } catch (e) {

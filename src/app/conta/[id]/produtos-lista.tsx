@@ -130,6 +130,13 @@ export function ListaProdutos({ contaId, produtos }: { contaId: string; produtos
                     <Check className="size-4" />
                   </button>
 
+                  {/* Sem isso, avulso e com-modelo ficam indistinguíveis na grade. */}
+                  {p.tipo === "avulso" && (
+                    <span className="absolute right-2 top-2 z-10 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white backdrop-blur-sm">
+                      Avulso
+                    </span>
+                  )}
+
                   {p.thumbUrl ? (
                     <Image
                       src={p.thumbUrl}

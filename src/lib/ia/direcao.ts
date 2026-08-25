@@ -2,6 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 import type { Formato } from "@/lib/formatos";
 import { ajustarLegenda } from "@/lib/legenda";
 
+/** 'modelo' = persona veste/segura o produto. 'avulso' = só a peça, sem pessoa. */
+export type TipoProduto = "modelo" | "avulso";
+
 /**
  * Direção dos vídeos e legendas, a partir da imagem base. Ver PLAN.md §5.
  *
@@ -71,6 +74,43 @@ detalhe:
 
 Repare: cada campo cita ALGO QUE SÓ ESSA PEÇA TEM, e sempre pela ROUPA (neckline, hem, trim) — nunca por parte do corpo. É esse o padrão.`;
 
+/**
+ * Avulso: só a peça, sem modelo (produto.tipo === 'avulso'). Nada de "she"/
+ * corpo/fala — a câmera e o cenário fazem o trabalho que a modelo fazia.
+ */
+const SYSTEM_AVULSO = `Você dirige vídeos de vitrine de roupa para afiliadas brasileiras — vídeos SEM modelo, só a peça (no cabide, em manequim, ou num flat lay), que elas postam no TikTok Shop, na Shopee e afins.
+
+Recebe uma foto da peça sozinha, sem ninguém vestindo. Sua função é escrever a DIREÇÃO de cada vídeo pedido — não o prompt inteiro.
+
+Regras que não se quebram:
+
+1. NUNCA introduza uma pessoa, mão ou corpo na direção — a peça é a única coisa em cena, sempre. Quem "atua" é a câmera (giro, close, luz), não um corpo.
+2. A direção é ESPECÍFICA DAQUELA PEÇA. Encontre o que ela tem de particular (um recorte, o caimento, a textura, uma estampa, o comprimento) e dirija o vídeo em torno disso.
+3. Escreva framing/movement/destaque em INGLÊS — vão direto pro modelo de vídeo.
+4. NÃO invente preço, desconto, marca, tecido ou composição que você não consegue ver na foto. Se não dá pra saber, não fale.
+5. Não repita nas suas respostas nada que já é fixo no prompt (9:16, iluminação, negative). Isso já está garantido em outro lugar.
+6. Nenhum destes formatos tem fala — não escreva speech mesmo que pareça fazer sentido.`;
+
+const FEW_SHOT_AVULSO = `Exemplo de direção BOA, para uma peça descrita como:
+"black satin slip dress with a cowl neckline and thin adjustable straps, on a wooden hanger"
+
+giro:
+  framing: medium shot, the whole dress centered in frame on the hanger
+  movement: slow continuous 360-degree orbit around the dress, revealing the cowl drape at the front and the clean line of the back
+  destaque: the cowl neckline drape — how the satin folds catch the light as the angle changes
+
+textura:
+  framing: starts on the full dress, then pushes in
+  movement: slow deliberate push-in to a macro close-up on the satin weave and the strap's adjustable buckle
+  destaque: the satin's sheen and the fine adjustable hardware on the strap — small detail that reads as quality
+
+estilo_vida:
+  framing: the dress laid flat on a bed with soft window light from the side
+  movement: minimal — a slow, subtle push-in as the light shifts gently across the fabric
+  destaque: how the satin catches and holds soft light, giving the fabric a liquid look
+
+Repare: cada campo cita ALGO QUE SÓ ESSA PEÇA TEM, e não existe pessoa em nenhum campo — só a peça, a câmera e a luz.`;
+
 // --- schema ------------------------------------------------------------------
 
 type JsonSchema = Record<string, unknown>;
@@ -123,7 +163,10 @@ export async function analisarImagemBase(args: {
   formatos: Formato[];
   /** O que está sendo anunciado (o nome do produto). Direciona o foco da câmera. */
   produtoAnunciado?: string;
+  /** 'avulso' = só a peça, sem modelo. Troca o SYSTEM/exemplo inteiro. */
+  tipo?: TipoProduto;
 }): Promise<Analise> {
+  const avulso = args.tipo === "avulso";
   const briefings = args.formatos
     .map((f) => `### ${f.key} (${f.duracaoS}s, ${f.temFala ? "COM fala" : "SEM fala"})\n${f.briefing}`)
     .join("\n\n");
@@ -142,12 +185,14 @@ export async function analisarImagemBase(args: {
         role: "user",
         parts: [
           { inlineData: { data: args.imagemBase.base64, mimeType: args.imagemBase.mimeType } },
-          { text: `${FEW_SHOT}\n\nAgora dirija estes vídeos para a peça da foto acima:${anuncioNota}\n\n${briefings}` },
+          {
+            text: `${avulso ? FEW_SHOT_AVULSO : FEW_SHOT}\n\nAgora dirija estes vídeos para a peça da foto acima:${anuncioNota}\n\n${briefings}`,
+          },
         ],
       },
     ],
     config: {
-      systemInstruction: SYSTEM,
+      systemInstruction: avulso ? SYSTEM_AVULSO : SYSTEM,
       responseMimeType: "application/json",
       responseJsonSchema: schemaPara(args.formatos),
     },
@@ -224,7 +269,13 @@ export async function escreverLegenda(args: {
    * precisa de descrições diferentes.
    */
   anguloDoVideo?: string;
+  /** 'avulso' = o vídeo não tem modelo vestindo — a legenda não pode fingir que tem. */
+  tipo?: TipoProduto;
 }): Promise<Legenda> {
+  const avulsoNota =
+    args.tipo === "avulso"
+      ? `\n\nO vídeo NÃO tem modelo vestindo a peça — é só a peça (cabide/manequim/flat lay). Não escreva como se alguém estivesse usando ("fica linda em mim", "amei usar") — venda a peça em si (caimento, tecido, detalhe).`
+      : "";
   // O nome do produto é o que está à venda — a legenda vende ISSO. Se a foto é
   // um look e o nome é uma peça dele, foca na peça; se é o look todo ou nome
   // genérico, fala do que está na foto. É o ponto do recurso.
@@ -245,7 +296,7 @@ export async function escreverLegenda(args: {
         role: "user",
         parts: [
           { inlineData: { data: args.imagemBase.base64, mimeType: args.imagemBase.mimeType } },
-          { text: `${COPY_FEW_SHOT}\n\nA peça da foto: ${args.descricaoRoupa}${anuncioNota}${anguloNota}\n\nAgora escreva a legenda e as hashtags desta peça.` },
+          { text: `${COPY_FEW_SHOT}\n\nA peça da foto: ${args.descricaoRoupa}${anuncioNota}${anguloNota}${avulsoNota}\n\nAgora escreva a legenda e as hashtags desta peça.` },
         ],
       },
     ],
@@ -301,6 +352,28 @@ const SUAVIZACOES: [RegExp, string][] = [
 ];
 
 /**
+ * Rede de segurança do AVULSO — diferente da de cima. SUAVIZACOES troca corpo
+ * por roupa porque o vídeo COM MODELO tem pessoa de verdade (só evita a parte
+ * do corpo que derruba o filtro). Avulso é o oposto: não pode ter pessoa
+ * NENHUMA em cena. Se a IA de direção escorregar e escrever "she"/"her hand"/
+ * "the woman", isto remove a pessoa por completo, não só suaviza a palavra.
+ */
+const REMOCOES_PESSOA: [RegExp, string][] = [
+  [/\bthe\s+(?:woman|model|person|girl)\b/gi, "the garment"],
+  [/\bshe\b/gi, "the camera"],
+  [/\b(?:her|his|their)\b/gi, "its"],
+  [/\b(?:hands?|fingers?)\b/gi, "fabric"],
+  [/\btouch(?:es|ing)?\b/gi, "reveals"],
+];
+
+/** Aplica as REMOCOES_PESSOA. Exportada pra ser testável, igual suavizarPrompt. */
+export function suavizarPromptAvulso(texto: string): string {
+  let t = texto;
+  for (const [re, sub] of REMOCOES_PESSOA) t = t.replace(re, sub);
+  return t.replace(/\s{2,}/g, " ").trim();
+}
+
+/**
  * Traduz o ajuste de visual (a usuária escreve em PT-BR) pra inglês curto de
  * styling. O prompt de vídeo é todo em inglês — texto em português no meio
  * derruba a aderência do gerador.
@@ -349,13 +422,19 @@ export function montarPromptMinimo(args: {
   formato: Formato;
   referencia: string;
   speech?: string;
+  /** 'avulso' = sem modelo — o fallback não pode inventar um corpo pra girar. */
+  tipo?: TipoProduto;
 }): string {
   const linhas = [
     args.formato.boilerplate.replace("{{referencia}}", args.referencia),
     "",
-    "FRAMING: medium shot, vertical, the outfit clearly visible.",
-    "MOVEMENT: she stands naturally and turns slowly to show the outfit, calm and relaxed.",
-    "FOCUS: the overall outfit and the way the fabric falls.",
+    "FRAMING: medium shot, vertical, the garment clearly visible.",
+    args.tipo === "avulso"
+      // Positivo, não negação ("no person"): modelo de vídeo às vezes reage à
+      // palavra citada mesmo negada. Descreve só o que DEVE aparecer.
+      ? "MOVEMENT: the camera alone moves in slow and steady around the garment."
+      : "MOVEMENT: she stands naturally and turns slowly to show the outfit, calm and relaxed.",
+    "FOCUS: the overall garment and the way the fabric falls.",
   ];
 
   if (args.formato.temFala && args.speech) {
@@ -377,9 +456,13 @@ export function montarPromptVideo(args: {
   descricaoRoupa: string;
   direcao: { framing: string; movement: string; destaque: string; speech?: string };
   referencia: string;
+  /** 'avulso' = sem pessoa em cena — troca a rede de segurança inteira. */
+  tipo?: TipoProduto;
 }): string {
-  // tira ponto final duplicado e passa pela rede de segurança do filtro
-  const p = (s: string) => suavizarPrompt(s).replace(/\.+$/, "");
+  // tira ponto final duplicado e passa pela rede de segurança certa: avulso
+  // REMOVE pessoa (não deveria ter nenhuma); modelo só suaviza corpo->roupa.
+  const suavizar = args.tipo === "avulso" ? suavizarPromptAvulso : suavizarPrompt;
+  const p = (s: string) => suavizar(s).replace(/\.+$/, "");
 
   const linhas = [
     args.formato.boilerplate.replace("{{referencia}}", args.referencia),

@@ -33,6 +33,13 @@ o job fica preso em `rodando` até o `destravar_jobs()` liberar (15 min).
 a persona vira outra pessoa em algumas dezenas de produtos, sem nenhum passo isolado
 parecer errado. Trocar é ação deliberada no setup da conta.
 
+**`produto.tipo === 'avulso'` não tem persona nenhuma — de propósito.** É a peça sozinha
+(cabide/manequim/flat lay), sem composição com a modelo. `gerarImagem()` pula o Nano
+Banana Pro inteiro (a `imagem_base` é a própria foto do produto, sem custo), e
+`analisar()`/`gerarVideoHandler()` trocam pra `FORMATOS_AVULSO` + `SYSTEM_AVULSO` (ver
+direcao.ts) — prompt e sanitizador (`suavizarPromptAvulso`) são outros, porque aqui a
+garantia é o OPOSTO de avulso='modelo': nenhuma pessoa pode aparecer, nunca.
+
 **O gate de aprovação é obrigatório.** `analisar()` recusa imagem que não esteja
 `aprovada`. Imagem custa ~R$0,72, vídeo ~R$5,40 — errar barato é o ponto. Não contorne.
 

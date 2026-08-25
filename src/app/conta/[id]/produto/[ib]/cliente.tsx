@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Check, Copy, Download, Loader2, Plus, RefreshCw, Trash2, TriangleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FORMATOS, FORMATOS_POR_KEY } from "@/lib/formatos";
+import { FORMATOS, FORMATOS_AVULSO, FORMATOS_POR_KEY } from "@/lib/formatos";
 import { CUSTO_VIDEO, formatarBRL } from "@/lib/custos";
 import { textoLegenda, LEGENDA_MAX } from "@/lib/legenda";
 import { itemLista, barraSuspensa, trocaDeTela } from "@/lib/motion";
@@ -169,6 +169,37 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
 
   // -------------------------------------------------------------- aprovação
   if (estado.status === "pronta") {
+    // Avulso: imagemUrl e produtoUrl são o MESMO arquivo (sem composição —
+    // ver worker/handlers.ts). Comparar lado a lado seria comparar a foto com
+    // ela mesma. E "Refazer" não existiria de verdade: regeraria uma cópia
+    // idêntica, já que nada foi gerado. Simplifica pra uma foto, um botão.
+    if (estado.produtoTipo === "avulso") {
+      return (
+        <Secao viewKey={viewKey} titulo="Essa é a foto certa?" sub="É esta imagem que vai virar vídeo.">
+          <div className="mx-auto max-w-[16rem]">
+            {estado.imagemUrl && (
+              <Image
+                src={estado.imagemUrl}
+                alt="Foto do produto"
+                width={480}
+                height={640}
+                sizes="256px"
+                className="w-full rounded-xl border border-border object-cover object-top"
+              />
+            )}
+          </div>
+          <Button
+            size="lg"
+            className="mt-6 h-12 w-full gap-1.5 text-base"
+            disabled={agindo}
+            onClick={() => agir(() => aprovarImagem(estado.imagemBaseId))}
+          >
+            <Check className="size-4" /> Continuar
+          </Button>
+        </Secao>
+      );
+    }
+
     return (
       <Secao viewKey={viewKey} titulo="A peça ficou igual?" sub="Compare com o anúncio antes de virar vídeo.">
         <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
@@ -231,7 +262,7 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
   if (estado.videos.length === 0) {
     return (
       <Secao viewKey={viewKey} titulo="Que vídeos você quer?" sub="Marque os estilos e quantas variações de cada — sai diferente cada vez.">
-        <EscolherFormatos imagemBaseId={estado.imagemBaseId} />
+        <EscolherFormatos imagemBaseId={estado.imagemBaseId} tipo={estado.produtoTipo} />
       </Secao>
     );
   }
@@ -418,7 +449,11 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
                 <X className="size-4" />
               </button>
             </div>
-            <EscolherFormatos imagemBaseId={estado.imagemBaseId} aoPedir={() => setEscolhendo(false)} />
+            <EscolherFormatos
+              imagemBaseId={estado.imagemBaseId}
+              tipo={estado.produtoTipo}
+              aoPedir={() => setEscolhendo(false)}
+            />
           </motion.div>
         ) : (
           <motion.div
@@ -457,15 +492,19 @@ export function Produto({ estado }: { estado: EstadoProduto }) {
  */
 function EscolherFormatos({
   imagemBaseId,
+  tipo,
   aoPedir,
 }: {
   imagemBaseId: string;
+  tipo: "modelo" | "avulso";
   aoPedir?: () => void;
 }) {
   const router = useRouter();
   const [enviando, iniciar] = useTransition();
-  const [qtd, setQtd] = useState<Record<string, number>>({ falando: 1 });
+  // Sugestão inicial diferente por tipo — "falando" não existe em avulso.
+  const [qtd, setQtd] = useState<Record<string, number>>(tipo === "avulso" ? { giro: 1 } : { falando: 1 });
   const total = Object.values(qtd).reduce((s, n) => s + n, 0);
+  const formatos = tipo === "avulso" ? FORMATOS_AVULSO : FORMATOS;
 
   function alternar(key: string) {
     setQtd((q) => {
@@ -492,7 +531,7 @@ function EscolherFormatos({
   return (
     <>
       <ul className="space-y-3">
-        {FORMATOS.map((f) => {
+        {formatos.map((f) => {
           const n = qtd[f.key] ?? 0;
           const on = n > 0;
           return (

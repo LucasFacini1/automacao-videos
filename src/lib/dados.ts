@@ -135,6 +135,7 @@ export type ProdutoLista = {
   id: string;
   nome: string;
   criadoEm: string;
+  tipo: "modelo" | "avulso";
   imagemBaseId: string | null;
   statusImagem: StatusImagem | null;
   thumbUrl: string | null;
@@ -156,7 +157,7 @@ export async function listarProdutos(contaId: string): Promise<ProdutoLista[]> {
 
   const { data, error } = await db
     .from("produto")
-    .select("id, nome, created_at, imagem_base ( id, image_url, status, created_at, video ( status ) )")
+    .select("id, nome, tipo, created_at, imagem_base ( id, image_url, status, created_at, video ( status ) )")
     .eq("conta_id", contaId)
     .order("created_at", { ascending: false });
 
@@ -177,6 +178,7 @@ export async function listarProdutos(contaId: string): Promise<ProdutoLista[]> {
       return {
         id: p.id,
         nome: p.nome,
+        tipo: (p.tipo as "modelo" | "avulso") ?? "modelo",
         criadoEm: p.created_at,
         imagemBaseId: atual?.id ?? null,
         statusImagem: atual?.status ?? null,
@@ -214,6 +216,8 @@ export type EstadoProduto = {
   imagemBaseId: string;
   contaId: string;
   produtoNome: string;
+  /** 'avulso' = só a peça, sem modelo. Muda a tela de aprovação e os formatos oferecidos. */
+  produtoTipo: "modelo" | "avulso";
   status: StatusImagem;
   imagemUrl: string | null;
   produtoUrl: string | null;
@@ -236,7 +240,7 @@ export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoPr
     .from("imagem_base")
     .select(
       `id, status, image_url, erro,
-       produto:produto_id ( nome, image_url, conta_id, conta:conta_id ( user_id ) ),
+       produto:produto_id ( nome, image_url, tipo, conta_id, conta:conta_id ( user_id ) ),
        analise ( copy ),
        video ( id, formato_key, status, video_url, erro, legenda )`,
     )
@@ -248,6 +252,7 @@ export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoPr
   const produto = data.produto as unknown as {
     nome: string;
     image_url: string;
+    tipo: "modelo" | "avulso";
     conta_id: string;
     conta: { user_id: string };
   };
@@ -268,6 +273,7 @@ export async function pegarEstadoProduto(imagemBaseId: string): Promise<EstadoPr
     imagemBaseId: data.id,
     contaId: produto.conta_id,
     produtoNome: produto.nome,
+    produtoTipo: produto.tipo,
     status: data.status,
     imagemUrl: data.image_url ? await urlAssinada(db, data.image_url) : null,
     produtoUrl: produto.image_url ? await urlAssinada(db, produto.image_url) : null,
